@@ -16,7 +16,7 @@ jobs:
   release:
     needs: windows-updater
     # Run on a version tag. A source change alone never installs on user computers.
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-')
     runs-on: ubuntu-latest
     permissions:
       contents: write
