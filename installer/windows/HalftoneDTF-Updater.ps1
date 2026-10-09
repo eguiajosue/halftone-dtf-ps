@@ -66,7 +66,7 @@ function Test-Release($Release,$Meta) {
 function Get-LatestPackage {
     [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
     $headers=@{'User-Agent'='Halftone-DTF-Updater';'Accept'='application/vnd.github+json'}
-    try { $release=Invoke-RestMethod -Uri ('https://api.github.com/repos/'+$script:Repo+'/releases/latest') -Headers $headers -TimeoutSec 20 }
+    try { $release=Invoke-RestMethod -UseBasicParsing -Uri ('https://api.github.com/repos/'+$script:Repo+'/releases/latest') -Headers $headers -TimeoutSec 20 }
     catch {
         $response=$_.Exception.PSObject.Properties['Response']
         if ($response -and $response.Value -and [int]$response.Value.StatusCode -eq 404) { throw 'Aun no hay release estable. No se instalara un candidato.' }
@@ -74,7 +74,8 @@ function Get-LatestPackage {
     }
     $asset=Get-Asset $release 'halftone-update.json'
     if ($asset.size -gt 16384) { throw 'Metadatos demasiado grandes.' }
-    $meta=Invoke-RestMethod -Uri $asset.browser_download_url -Headers @{'User-Agent'='Halftone-DTF-Updater'} -TimeoutSec 20
+    $response=Invoke-WebRequest -UseBasicParsing -Uri $asset.browser_download_url -Headers @{'User-Agent'='Halftone-DTF-Updater'} -TimeoutSec 20
+    $meta=$response.Content | ConvertFrom-Json
     $ccx=Test-Release $release $meta
     return @{Release=$release;Meta=$meta;Asset=$ccx}
 }
@@ -82,7 +83,7 @@ function Test-Package([string]$Path,$Meta) {
     $file=Get-Item -LiteralPath $Path
     if ($file.Length -ne $Meta.ccx.size) { throw 'La descarga esta incompleta.' }
     if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant() -cne $Meta.ccx.sha256) { throw 'Checksum incorrecto. Instalacion cancelada.' }
-    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    Add-Type -AssemblyName System.IO.Compression, System.IO.Compression.FileSystem
     $zip=[IO.Compression.ZipFile]::OpenRead($Path)
     try {
         $entries=@($zip.Entries | Where-Object { $_.FullName -ceq 'manifest.json' })

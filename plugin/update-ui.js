@@ -30,7 +30,7 @@ function initUpdates({get,preferences,fetchImpl,photoshop,open}){
         target=RELEASES;download.textContent='Abrir releases';get('updateNotice').className='hidden';
         text.textContent=result.empty?'Aún no hay un instalador estable publicado.':'Tu versión está al día.';
       }
-    }catch(e){text.textContent=force?(e.message||String(e)):'Sin conexión para comprobar actualizaciones. Puedes seguir trabajando.';}
+    }catch(e){text.textContent=force?(e.message||String(e)):'No se pudo comprobar una actualización verificada. Puedes seguir trabajando.';}
     finally{checking=false;button.disabled=locked;}
   }
   button.addEventListener('click',()=>check(true));

@@ -1,1 +1,1 @@
-e810fd621e75d5657e518bdbcd92cad9eba86875b4eb3fe068f2803d21c0c3e4  Halftone-DTF-0.6.1.ccx
+9bafb2e9b4a71380acb0dfabc70a736271218b3c17811ab43cda54b9c6f765f7  Halftone-DTF-0.6.1.ccx
