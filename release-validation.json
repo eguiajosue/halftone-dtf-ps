@@ -1,6 +1,6 @@
 {
   "schema": "halftone-release-validation",
-  "version": "0.6.1",
+  "version": "0.6.2",
   "status": "candidate",
   "required": {
     "official_ccx_packaging": {

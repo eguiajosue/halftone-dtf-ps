@@ -38,8 +38,15 @@ async function readRGBA(doc,layerID,bounds) {
   if((bounds.right-bounds.left)*(bounds.bottom-bounds.top)>MAX_TILE_SOURCE_PIXELS) throw Error('La región de origen excede el presupuesto de memoria. Reduce el lienzo o recorta el arte.');
   let obj;
   try {
-    obj=await imaging.getPixels({documentID:doc.id,layerID,sourceBounds:bounds,
-      colorSpace:'RGB',colorProfile:PROFILE,componentSize:8,applyAlpha:false});
+    const request={documentID:doc.id,sourceBounds:bounds,
+      colorSpace:'RGB',colorProfile:PROFILE,componentSize:8,applyAlpha:false};
+    // Native UXP validates present keys even when their value is undefined.
+    // Omit layerID for the merged composition; include only a valid native ID.
+    if(layerID!=null){
+      if(!Number.isSafeInteger(layerID))throw Error('El identificador de la capa no es numérico. Vuelve a seleccionar el origen.');
+      request.layerID=layerID;
+    }
+    obj=await imaging.getPixels(request);
     const im=obj.imageData;
     if(!im || !im.width || !im.height) return {data:new Uint8Array(0),width:0,height:0,bounds:{left:bounds.left,top:bounds.top}};
     if(obj.level!==0) throw Error('Photoshop devolvió píxeles de caché reducidos. No se aplicará una trama a escala incorrecta.');

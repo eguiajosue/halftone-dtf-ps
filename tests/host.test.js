@@ -12,6 +12,7 @@ function fixture({empty=false,cancel=false,semiExport=false}={}) {
   result.layers[0].delete=()=>{result.layers=result.layers.filter(l=>l.id!==21);};
   result.closeWithoutSaving=()=>{calls.push(['close',20]);app.documents=app.documents.filter(d=>d.id!==20);};
   const imaging={getPixels:async o=>{
+    if(Object.prototype.hasOwnProperty.call(o,'layerID')&&!Number.isSafeInteger(o.layerID))throw Error('Incorrect type for key: layerID. Expected: number');
     calls.push(['get',o]);
     const b=o.sourceBounds;
     const left=Math.max(b.left,13),top=Math.max(b.top,17),right=Math.min(b.right,23),bottom=Math.min(b.bottom,32);
@@ -33,6 +34,21 @@ function fixture({empty=false,cancel=false,semiExport=false}={}) {
     Uint8Array,Array,setTimeout,Promise});
   return {host:module.exports,calls,app,original,result,stores,imaging};
 }
+test('native composite reads omit layerID during preparation and PNG export',async()=>{
+ const f=fixture(),o={knockout:false,minDiameterMM:0};
+ const result=await f.host.apply('composite',o);
+ await f.host.exportPNG(result.documentID,{name:'result.png'});
+ const reads=f.calls.filter(c=>c[0]==='get');assert.ok(reads.length>=2);
+ for(const [,request]of reads)assert.equal(Object.prototype.hasOwnProperty.call(request,'layerID'),false);
+ assert.ok(f.calls.some(c=>c[0]==='png'));
+});
+test('native layer reads retain numeric ID; invalid IDs fail before Imaging API',async()=>{
+ const f=fixture();await f.host.apply('layer',{knockout:false,minDiameterMM:0});
+ assert.equal(f.calls.find(c=>c[0]==='get')[1].layerID,11);
+ const g=fixture();g.original.activeLayers[0].id='11';
+ await assert.rejects(g.host.apply('layer',{knockout:false,minDiameterMM:0}),/no es numérico/);
+ assert.equal(g.calls.filter(c=>c[0]==='get').length,0);
+});
 test('host writes full resized canvas at origin; preserves layer offset; source untouched',async()=>{
   const f=fixture();const r=await f.host.apply('layer',{knockout:false,minDiameterMM:0});
   assert.equal(r.documentID,20);
