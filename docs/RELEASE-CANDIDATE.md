@@ -8,7 +8,7 @@ Archivos:
 - `Halftone-DTF-Updater-Windows.zip`: acompañante de Windows.
 - `SHA256SUMS.txt`: checksum del CCX.
 
-Validación automática: 118 pruebas JavaScript, 4 de distribución Python y 10 del acompañante en Windows aprobadas. Estas últimas simulan Adobe UPIA y no registran una tarea real.
+Validación automática: 119 pruebas JavaScript, 4 de distribución Python y 10 del acompañante en Windows aprobadas. Estas últimas simulan Adobe UPIA y no registran una tarea real.
 
 El CCX es un candidato ZIP reproducible; todavía debe empaquetarse/comprobarse con las herramientas de Adobe. No se afirma instalación nativa, aprobación Marketplace ni validación de impresión física. Esta publicación es un prerelease y no es elegible para instalación automática. El acompañante solo instala releases estables validados con su metadata completa; hoy se detendrá si no existe uno.
 
