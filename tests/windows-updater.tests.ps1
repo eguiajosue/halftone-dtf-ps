@@ -53,6 +53,12 @@ try {
         $r=Copy-Object $release;$r.draft=$true;Assert-Throws { Test-Release $r $meta } 'estables'
         $r=Copy-Object $release;$r.assets[0].browser_download_url='https://example.com/file.ccx';Assert-Throws { Test-Release $r $meta } 'Origen'
     }
+    Test 'metadata assets parse UTF8 bytes and text without relying on content type' {
+        $json=$meta | ConvertTo-Json -Depth 6
+        Assert ((Convert-UpdateJson $json).version -eq '0.7.0') 'Text metadata failed'
+        Assert ((Convert-UpdateJson ([Text.Encoding]::UTF8.GetBytes($json))).version -eq '0.7.0') 'Binary metadata failed'
+        Assert-Throws { Convert-UpdateJson ('x'*16385) } 'invalido'
+    }
     Test 'CCX verifies bytes, manifest identity and duplicate entries' {
         $p=New-Package;$m=Package-Meta $p;Test-Package $p $m
         $m.ccx.sha256='b'*64;Assert-Throws { Test-Package $p $m } 'Checksum'

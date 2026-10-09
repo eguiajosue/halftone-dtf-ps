@@ -63,6 +63,12 @@ function Test-Release($Release,$Meta) {
     if ($asset.size -ne $Meta.ccx.size) { throw 'Tamano inconsistente.' }
     return $asset
 }
+function Convert-UpdateJson($Content) {
+    # GitHub release assets may be served as octet-stream on Windows PowerShell.
+    if ($Content -is [byte[]]) { $Content=[Text.Encoding]::UTF8.GetString($Content) }
+    if ($Content -isnot [string] -or [Text.Encoding]::UTF8.GetByteCount($Content) -gt 16384) { throw 'Documento de actualizacion invalido.' }
+    return $Content | ConvertFrom-Json
+}
 function Get-LatestPackage {
     [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
     $headers=@{'User-Agent'='Halftone-DTF-Updater';'Accept'='application/vnd.github+json'}
@@ -75,7 +81,7 @@ function Get-LatestPackage {
     $asset=Get-Asset $release 'halftone-update.json'
     if ($asset.size -gt 16384) { throw 'Metadatos demasiado grandes.' }
     $response=Invoke-WebRequest -UseBasicParsing -Uri $asset.browser_download_url -Headers @{'User-Agent'='Halftone-DTF-Updater'} -TimeoutSec 20
-    $meta=$response.Content | ConvertFrom-Json
+    $meta=Convert-UpdateJson $response.Content
     $ccx=Test-Release $release $meta
     return @{Release=$release;Meta=$meta;Asset=$ccx}
 }
