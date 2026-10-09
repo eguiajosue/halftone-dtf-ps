@@ -34,7 +34,8 @@ function fixture(){
 
   vm.runInNewContext(fs.readFileSync(require.resolve('../plugin/main'),'utf8'),{
     require:name=>name==='uxp'?{entrypoints:{setup:()=>{}},storage:{localFileSystem:storageFS,formats:{binary:'binary'}}}:name==='./host'?host:require('../plugin/'+name.replace('./','')),
-    document:{createElement,getElementById:id=>{if(!elements[id])throw Error('Missing '+id);return elements[id];},querySelectorAll:()=>Object.values(elements).filter(el=>['input','select','button','sp-slider'].includes(el.tag))},
+    document:{createElement,getElementById:id=>{if(!elements[id])throw Error('Missing '+id);return elements[id];},querySelectorAll:()=>Object.values(elements).filter(el=>['input','select','button','sp-slider','sp-button','sp-action-button','sp-checkbox','sp-textfield'].includes(el.tag))},
+    customElements:{get:()=>function RegisteredControl(){}},
     localStorage:{getItem:key=>values[key],setItem:(key,value)=>{values[key]=value;}},setTimeout,clearTimeout,Promise,Uint8Array
   });
   return {elements,calls,host,storageFS,values};
@@ -86,7 +87,7 @@ test('comparison divider updates rendering without scheduling another Photoshop 
 
 test('new UI tabs show only task-specific controls; cm/in switches preserve exact print plan',async()=>{
  const {elements:e,calls}=fixture();e.widthCM.value=20;await e.widthCM.emit('input');
- for(let i=0;i<5;i++){e.units.value='in';await e.units.emit('change');assert.ok(Math.abs(Number(e.widthCM.value)-20/2.54)<1e-6);e.units.value='cm';await e.units.emit('change');}
+ for(let i=0;i<5;i++){e.units.value='in';await e.units.emit('change');assert.ok(Math.abs(Number(e.widthCM.value)-20/2.54)<.005);e.units.value='cm';await e.units.emit('change');}
  assert.equal(Number(e.widthCM.value),20);await e.next.emit('click');assert.equal(calls.find(c=>c[0]==='begin')[2].widthCM,20);
   await e.tabColor.emit('click');assert.equal(e.colorControls.className,'control-card');assert.ok(!e.levelsControls.className.includes('hidden'));
   await e.tabDetails.emit('click');assert.equal(e.cleanupControls.className,'control-card');assert.equal(e.protectionControls.className,'control-card');await e.cancel.emit('click');
@@ -115,7 +116,7 @@ test('initial preparation cancellation remains available while controls are busy
 test('one batch can assign adult and child sizes to different images without invalid hidden sizes',async()=>{
  const {elements:e,calls}=fixture();await e.openBatch.emit('click');await e.batchFiles.emit('click');await e.batchFolder.emit('click');
  e.batchImageIndex.value='0';await e.batchImageIndex.emit('change');e.imageGarment.value='child';await e.imageGarment.emit('change');
- assert.equal(e.imageSizeM.parentElement.className,'check hidden');assert.equal(e.imageSize4.parentElement.className,'check');
+ assert.equal(e.imageSizeM.className,'check hidden');assert.equal(e.imageSize4.className,'check');
  await e.saveAssignment.emit('click');await e.batchRun.emit('click');const jobs=calls.filter(c=>c[0]==='begin');assert.equal(jobs.length,4);
  assert.equal(jobs[0][2].garment,'child');assert.equal(jobs[2][2].garment,'adult');assert.ok(jobs[0][2].widthCM<jobs[2][2].widthCM);
 });
@@ -151,4 +152,17 @@ test('divider drags coalesce into one workspace render without running the engin
  await new Promise(r=>setTimeout(r,120));
  assert.deepEqual(calls.filter(c=>c[0]==='workspace'),[['workspace','compare',89]]);
  assert.equal(calls.filter(c=>c[0]==='update').length,0);await e.cancel.emit('click');
+});
+
+test('Spectrum fields, checkboxes and actions disable during work and recover after cancellation',async()=>{
+ const {elements:e,host}=fixture();let release;host.beginSession=async()=>{await new Promise(r=>release=r);throw Error('stopped');};
+ const pending=e.next.emit('click');await Promise.resolve();
+ for(const id of ['next','foreground','knockout','key','sizeMode','widthCM','cleanupHigh','viewMask'])assert.equal(e[id].disabled,true,id);
+ await e.cancelPreparation.emit('click');release();await pending;
+ for(const id of ['next','foreground','knockout','key','sizeMode','widthCM'])assert.equal(e[id].disabled,false,id);
+});
+test('rounded measurement display preserves full print size across cm/in changes and source refresh',async()=>{
+ const {elements:e,calls}=fixture();e.widthCM.value=20;await e.widthCM.emit('input');e.units.value='in';await e.units.emit('change');
+ assert.equal(e.widthCM.value,'7.87');await e.useCurrent.emit('click');await e.next.emit('click');
+ assert.equal(calls.find(c=>c[0]==='begin')[2].widthCM,20);await e.cancel.emit('click');
 });

@@ -2,7 +2,7 @@
   "manifestVersion": 5,
   "id": "com.josueeguia.halftonedtf",
   "name": "Halftone DTF",
-  "version": "0.6.3",
+  "version": "0.6.4",
   "main": "index.html",
   "host": {
     "app": "PS",
@@ -51,5 +51,8 @@
         "height": 760
       }
     }
-  ]
+  ],
+  "featureFlags": {
+    "enableSWCSupport": true
+  }
 }

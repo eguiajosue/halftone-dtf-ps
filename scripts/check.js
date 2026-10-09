@@ -13,3 +13,11 @@ const html=fs.readFileSync(path.join(plugin,'index.html'),'utf8'), js=fs.readFil
 for(const match of js.matchAll(/\$\('([^']+)'\)/g)) if(!html.includes(`id="${match[1]}"`)) throw Error('Missing control '+match[1]);
 const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);if(new Set(ids).size!==ids.length)throw Error('Duplicate HTML IDs');
 console.log('Manifest, syntax and control references OK. Photoshop execution remains a manual check.');
+
+if(m.featureFlags?.enableSWCSupport!==true)throw Error('Spectrum custom elements must be enabled');
+const bundle=path.join(plugin,'vendor/spectrum.js');
+if(!fs.existsSync(bundle)||fs.statSync(bundle).size>900000)throw Error('Missing or oversized Spectrum bundle; run npm run build:ui');
+if(!html.includes('src="vendor/spectrum.js"')||html.indexOf('src="vendor/spectrum.js"')>html.indexOf('src="main.js"'))throw Error('Register Spectrum before main');
+for(const tag of ['sp-theme','sp-button','sp-action-button','sp-checkbox','sp-textfield'])if(!html.includes('<'+tag))throw Error('Missing Spectrum control '+tag);
+const lock=JSON.parse(fs.readFileSync(path.join(root,'package-lock.json')));if(lock.version!==m.version||lock.packages[''].version!==m.version)throw Error('Lockfile version differs');
+console.log('Spectrum bundle, manifest flag, load order and pinned lockfile OK.');

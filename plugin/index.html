@@ -5,25 +5,26 @@
     <link href="styles.css" rel="stylesheet">
   </head>
   <body>
+    <sp-theme color="dark" scale="medium" theme="classic">
     <main>
       <header>
         <div class="brand">
-          <h1>HALFTONE DTF</h1>
+          <div class="brand-name"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="5" cy="5" r="3" fill="#a9d7c6"/><circle cx="16" cy="5" r="2.5" fill="#a9d7c6"/><circle cx="5" cy="16" r="2" fill="#a9d7c6"/><circle cx="16" cy="16" r="1.5" fill="#a9d7c6"/></svg><h1>HALFTONE <span>DTF</span></h1></div>
           <span id="stageBadge" class="stage-badge">Preparar</span>
-          <button id="toggleTools" class="menu-button" aria-label="Herramientas" aria-expanded="false">☰</button>
+          <sp-action-button size="s" quiet id="toggleTools" class="menu-button" aria-label="Herramientas" aria-expanded="false">☰</sp-action-button>
         </div>
         <p id="updateNotice" class="hidden"></p>
-        <div class="hidden">
-          <p id="stepLabel"></p>
-          <span id="stepPrepare"></span>
-          <span id="stepEdit"></span>
-          <span id="stepResult"></span>
+        <div class="workflow" aria-label="Etapas de preparación">
+          <span id="stepPrepare" class="current">01 Preparar</span>
+          <span id="stepEdit">02 Ajustar</span>
+          <span id="stepResult">03 Exportar</span>
         </div>
+        <p class="hidden" id="stepLabel"></p>
       </header>
       <section id="toolsPanel" class="hidden">
-        <button id="toggleRecipes">Recetas y perfiles</button>
-        <button id="toggleHelp">Ayuda y diagnóstico</button>
-        <button id="toggleUpdates">Versión y actualizaciones</button>
+        <sp-action-button size="s" quiet id="toggleRecipes">Recetas y perfiles</sp-action-button>
+        <sp-action-button size="s" quiet id="toggleHelp">Ayuda y diagnóstico</sp-action-button>
+        <sp-action-button size="s" quiet id="toggleUpdates">Versión y actualizaciones</sp-action-button>
         <section id="sourceOptions" class="hidden">
           <h2>Origen</h2>
           <label>Procesar<select id="source">
@@ -31,17 +32,16 @@
               <option value="composite">Composición visible</option>
             </select>
           </label>
-          <button id="useCurrent">Usar documento actual</button>
+          <sp-action-button size="s" quiet id="useCurrent">Usar documento actual</sp-action-button>
           <p class="hint" id="sourceInfo">Sin documento.</p>
-          <button class="quiet" id="convertCurrent">Crear copia RGB / 8 bits</button>
-          <label class="check">
-            <input id="trimArt" type="checkbox"> Medir solo el arte · recortar márgenes transparentes</label>
+          <sp-action-button size="s" quiet class="quiet" id="convertCurrent">Crear copia RGB / 8 bits</sp-action-button>
+          <sp-checkbox size="s" class="check" id="trimArt">Medir solo el arte · recortar márgenes transparentes</sp-checkbox>
           <label>Umbral de alfa · sin trama<input id="alphaThreshold" max="255" min="1" type="number" value="128">
           </label>
         </section>
-        <button id="toggleSource" type="button">Origen y recorte</button>
-        <button id="togglePerformance" type="button">Rendimiento</button>
-        <button id="openProject">Abrir proyecto editable</button>
+        <sp-action-button size="s" quiet id="toggleSource">Origen y recorte</sp-action-button>
+        <sp-action-button size="s" quiet id="togglePerformance">Rendimiento</sp-action-button>
+        <sp-action-button size="s" quiet id="openProject">Abrir proyecto editable</sp-action-button>
         <section id="performancePanel" class="hidden">
           <h2>Rendimiento</h2>
           <label>Memoria<select id="memoryMode">
@@ -52,18 +52,18 @@
           <label>Disco disponible para este trabajo · GB<input id="diskBudgetGB" max="100000" min="0" step="0.1" type="number" value="0">
           </label>
           <p class="hint" id="resourceInfo"></p>
-          <button id="cleanupCaches">Limpiar cachés abandonadas</button>
+          <sp-action-button size="s" quiet id="cleanupCaches">Limpiar cachés abandonadas</sp-action-button>
         </section>
       </section>
       <section id="updatesPanel" class="hidden">
         <h2 id="pluginVersion">Halftone DTF</h2>
-        <label class="check"><input id="autoCheckUpdates" type="checkbox" checked> Buscar actualizaciones al abrir el panel</label>
+        <sp-checkbox size="s" class="check" id="autoCheckUpdates" checked>Buscar actualizaciones al abrir el panel</sp-checkbox>
         <p id="updateStatus" class="hint" role="status" aria-live="polite"></p>
         <div class="row">
-          <button id="checkUpdates">Buscar ahora</button>
-          <button id="openUpdate">Abrir releases</button>
+          <sp-action-button size="s" quiet id="checkUpdates">Buscar ahora</sp-action-button>
+          <sp-action-button size="s" quiet id="openUpdate">Abrir releases</sp-action-button>
         </div>
-        <button id="updaterGuide">Instalación y actualización automática</button>
+        <sp-action-button size="s" quiet id="updaterGuide">Instalación y actualización automática</sp-action-button>
       </section>
       <section class="hidden" id="recipesPanel">
         <h2>Recetas del taller</h2>
@@ -72,31 +72,30 @@
           </select>
         </label>
         <div class="row">
-          <button id="applyRecipe">Usar</button>
-          <button id="deleteRecipe">Eliminar</button>
+          <sp-action-button size="s" quiet id="applyRecipe">Usar</sp-action-button>
+          <sp-action-button size="s" quiet id="deleteRecipe">Eliminar</sp-action-button>
         </div>
-        <label>Nombre<input id="recipeName" maxlength="80" placeholder="Algodón negro · detalle fino">
+        <label>Nombre<sp-textfield size="s" label="recipeName" id="recipeName" maxlength="80" placeholder="Algodón negro · detalle fino"></sp-textfield>
         </label>
         <div class="row">
-          <label>Marca<input id="profileBrand">
+          <label>Marca<sp-textfield size="s" label="profileBrand" id="profileBrand"></sp-textfield>
           </label>
-          <label>Modelo<input id="profileModel">
+          <label>Modelo<sp-textfield size="s" label="profileModel" id="profileModel"></sp-textfield>
           </label>
         </div>
         <div class="row">
-          <label>Equipo<input id="profileMachine" placeholder="Mimaki TXF300-75">
+          <label>Equipo<sp-textfield size="s" label="profileMachine" id="profileMachine" placeholder="Mimaki TXF300-75"></sp-textfield>
           </label>
-          <label>RIP<input id="profileRIP" placeholder="RasterLink 7">
+          <label>RIP<sp-textfield size="s" label="profileRIP" id="profileRIP" placeholder="RasterLink 7"></sp-textfield>
           </label>
         </div>
-        <label>Material<input id="profileMaterial" placeholder="Playera algodón · film y polvo">
+        <label>Material<sp-textfield size="s" label="profileMaterial" id="profileMaterial" placeholder="Playera algodón · film y polvo"></sp-textfield>
         </label>
-        <label class="check">
-          <input id="profileCalibrated" type="checkbox"> Probada físicamente en este equipo y material</label>
-        <button class="primary" id="saveRecipe">Guardar receta y áreas actuales</button>
+        <sp-checkbox size="s" class="check" id="profileCalibrated">Probada físicamente en este equipo y material</sp-checkbox>
+        <sp-button size="m" variant="accent" treatment="fill" class="primary" id="saveRecipe">Guardar receta y áreas actuales</sp-button>
         <div class="row">
-          <button id="importRecipes">Importar</button>
-          <button id="exportRecipes">Exportar</button>
+          <sp-action-button size="s" quiet id="importRecipes">Importar</sp-action-button>
+          <sp-action-button size="s" quiet id="exportRecipes">Exportar</sp-action-button>
         </div>
         <p class="hint">Guarda ajustes, medidas y notas. Esta marca registra tu prueba; no certifica la impresión.</p>
       </section>
@@ -124,12 +123,13 @@
           <strong>Prenda:</strong> el mockup es una plantilla plana medida, no una simulación de tinta o textura. Confirma área y plancha.</p>
         <p>
           <strong>Color:</strong> salida sRGB/8 bits. Convertir copia conserva tu documento original. La compensación y el de-fringe requieren prueba de impresión.</p>
-        <button id="diagnosticExport">Exportar diagnóstico de sesión</button>
-        <button id="nativeSelfTest">Ejecutar comprobación en Photoshop</button>
+        <sp-action-button size="s" quiet id="diagnosticExport">Exportar diagnóstico de sesión</sp-action-button>
+        <sp-action-button size="s" quiet id="nativeSelfTest">Ejecutar comprobación en Photoshop</sp-action-button>
       </section>
       <div id="prepareStage">
-        <section>
-          <h2>Tamaño final</h2>
+        <div class="stage-content" id="prepareContent">
+        <section class="prepare-card">
+          <div class="section-heading"><span class="section-index">01</span><h2>Tamaño de impresión</h2></div>
           <label>Medida<select id="sizeMode">
               <option value="custom">A medida</option>
               <option value="preset">Por talla y posición</option>
@@ -151,17 +151,17 @@
                 </select>
               </label>
               <label>Talla<select id="shirtSize">
-                  <option>XS</option>
-                  <option>S</option>
-                  <option selected="">M</option>
-                  <option>L</option>
-                  <option>XL</option>
-                  <option>2XL</option>
-                  <option>3XL</option>
+                  <option value="XS">XS</option>
+                  <option value="S">S</option>
+                  <option selected="" value="M">M</option>
+                  <option value="L">L</option>
+                  <option value="XL">XL</option>
+                  <option value="2XL">2XL</option>
+                  <option value="3XL">3XL</option>
                 </select>
               </label>
             </div>
-            <button id="applyPreset">Encajar en el área</button>
+            <sp-action-button size="s" quiet id="applyPreset">Encajar en el área</sp-action-button>
             <p class="hint" id="presetInfo">Áreas orientativas ajustables. El arte encaja sin deformarse; confirma medidas en la prenda.</p>
           </div>
           <div class="row">
@@ -181,7 +181,7 @@
           <p class="hidden">Se dimensiona el lienzo completo. Recorta márgenes vacíos para medir solo el arte.</p>
         </section>
         <section class="control-card" id="prepareTrama">
-          <h2>Trama</h2>
+          <div class="section-heading"><span class="section-index">02</span><h2>Trama de semitonos</h2></div>
           <label>Forma<select id="shape">
               <option value="round">Redonda</option>
               <option value="ellipse">Elipse 2:1</option>
@@ -191,22 +191,20 @@
             </select>
           </label>
           <div class="row">
-            <label>Lineatura · LPI<input id="lpi" max="75" min="5" type="number" value="30">
+            <label>Lineatura (LPI)<input id="lpi" max="75" min="5" type="number" value="30">
             </label>
-            <label>Ángulo · °<input id="angle" max="180" min="-180" type="number" value="33">
+            <label>Ángulo (°)<input id="angle" max="180" min="-180" type="number" value="33">
             </label>
           </div>
-          <label class="check">
-            <input checked="" id="halftone" type="checkbox"> Activar trama de semitonos</label>
+          <sp-checkbox size="s" class="check" checked="" id="halftone">Activar trama de semitonos</sp-checkbox>
         </section>
-        <section>
-          <h2>Color a eliminar</h2>
-          <label class="check">
-            <input checked="" id="knockout" type="checkbox"> Eliminar color</label>
+        <section class="prepare-card">
+          <div class="section-heading"><span class="section-index">03</span><h2>Color a eliminar</h2></div>
+          <sp-checkbox size="s" class="check" checked="" id="knockout">Eliminar color</sp-checkbox>
           <div class="row">
-            <label>HEX<input id="key" maxlength="7" value="#000000">
+            <label>HEX<sp-textfield size="s" label="Color a eliminar HEX" id="key" maxlength="7" value="#000000"></sp-textfield>
             </label>
-            <button id="foreground" class="swatch">Cuentagotas</button>
+            <sp-action-button size="s" quiet id="foreground" class="swatch" aria-label="Tomar color a eliminar"><svg slot="icon" width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 2l4 4M9 3l4 4M10 5L3 12l-1 2 2-1 7-7" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>Tomar</sp-action-button>
           </div>
           <div id="prepareColorAdvanced" class="hidden">
             <div class="row">
@@ -216,30 +214,30 @@
               </label>
             </div>
           </div>
-          <button id="togglePrepareColor" type="button">Ajustar eliminación</button>
+          <sp-action-button size="s" quiet id="togglePrepareColor">Ajustar eliminación</sp-action-button>
         </section>
-        <button class="primary" id="next">Crear semitonos</button>
-        <button id="openBatch">Procesar lote</button>
+        </div>
+        <div class="stage-actions">
+        <sp-button size="m" variant="accent" treatment="fill" class="primary" id="next">Crear vista de semitonos</sp-button>
+        <sp-action-button size="s" quiet id="openBatch">Procesar lote</sp-action-button>
       </div>
+        </div>
       <div id="editStage" class="hidden">
+        <div class="stage-content" id="editContent">
         <section class="color-core">
           <div class="row color-row">
-            <label class="check">
-              <input checked="" id="knockoutEdit" type="checkbox"> Eliminar color</label>
-            <button id="foregroundEdit" class="swatch" aria-label="Color a eliminar y cuentagotas" title="Elegir color a eliminar">Elegir</button>
+            <sp-checkbox size="s" class="check" checked="" id="knockoutEdit">Eliminar color</sp-checkbox>
+            <sp-action-button size="s" quiet id="foregroundEdit" class="swatch" aria-label="Color a eliminar y cuentagotas" title="Elegir color a eliminar"><span slot="icon" class="swatch-chip" id="keySwatch"></span><span id="keyHexCaption">#000000</span></sp-action-button>
           </div>
           <div class="row color-row">
             <span class="color-caption">Fondo de prenda</span>
-            <button id="pickBackground" type="button" class="swatch" aria-label="Color de la prenda" title="Elegir fondo de la prenda">Elegir</button>
+            <sp-action-button size="s" quiet id="pickBackground" class="swatch" aria-label="Color de la prenda" title="Elegir fondo de la prenda"><span slot="icon" class="swatch-chip" id="backgroundSwatch"></span><span id="backgroundHexCaption">#000000</span></sp-action-button>
           </div>
-          <label class="check">
-            <input checked="" id="linkBackground" type="checkbox">
-            <span>Vincular al color eliminado</span>
-          </label>
+          <sp-checkbox size="s" class="check" checked="" id="linkBackground"><span>Usar el color eliminado como fondo</span></sp-checkbox>
         </section>
         <div class="row">
-          <button id="resetLevels">Restablecer niveles</button>
-          <button id="editScreen" type="button">Editar trama</button>
+          <sp-action-button size="s" quiet id="resetLevels">Restablecer</sp-action-button>
+          <sp-action-button size="s" quiet id="editScreen">Trama</sp-action-button>
         </div>
         <section id="tramaControls" class="control-card hidden">
           <label>Forma<select id="shapeEdit">
@@ -251,16 +249,15 @@
             </select>
           </label>
           <div class="row">
-            <label>Lineatura · LPI<input id="lpiEdit" type="number" min="5" max="75" value="30">
+            <label>Lineatura (LPI)<input id="lpiEdit" type="number" min="5" max="75" value="30">
             </label>
-            <label>Ángulo · °<input id="angleEdit" type="number" min="-180" max="180" value="33">
+            <label>Ángulo (°)<input id="angleEdit" type="number" min="-180" max="180" value="33">
             </label>
           </div>
-          <label class="check">
-            <input id="halftoneEdit" type="checkbox" checked=""> Activar trama</label>
+          <sp-checkbox size="s" class="check" id="halftoneEdit" checked="">Activar trama</sp-checkbox>
         </section>
         <section class="control-card" id="levelsControls">
-          <h2>Niveles de entrada</h2>
+          <div class="section-heading"><h2>Cobertura de la trama</h2></div>
           <div class="levels-row">
             <div class="level">
               <label>Negro<input id="inputBlack" max="254" min="0" step="1" type="number" value="7">
@@ -278,7 +275,7 @@
               <sp-slider id="inputWhiteSlider" max="255" min="1" show-value="false" value="100"></sp-slider>
             </div>
           </div>
-          <button id="toggleOutput" class="quiet" aria-expanded="false">Salida y sombras ▾</button>
+          <sp-action-button size="s" quiet id="toggleOutput" class="quiet" aria-expanded="false">Salida y sombras</sp-action-button>
           <div id="outputControls" class="hidden">
           <h2>Niveles de salida</h2>
           <div class="levels-row">
@@ -301,14 +298,14 @@
         </div>
           </div>
         </section>
-        <div class="view-buttons">
-          <button id="viewOriginal">Original</button>
-          <button id="viewGarment" class="active">Prenda</button>
-          <button id="viewTransparent" aria-label="Trama sobre fondo transparente">Trama</button>
-          <button id="viewMask">Máscara</button>
+        <p class="control-caption">Vista en Photoshop</p>
+        <div class="view-buttons" role="group" aria-label="Vista en Photoshop">
+          <sp-action-button size="s" quiet id="viewOriginal">Original</sp-action-button>
+          <sp-action-button size="s" quiet id="viewGarment" class="active">Prenda</sp-action-button>
+          <sp-action-button size="s" quiet id="viewTransparent" aria-label="Trama sobre fondo transparente">Trama</sp-action-button>
+          <sp-action-button size="s" quiet id="viewMask">Máscara</sp-action-button>
         </div>
-        <label class="check compare-toggle">
-          <input id="compareEnabled" type="checkbox"> Comparar antes / después</label>
+        <sp-checkbox size="s" class="check compare-toggle" id="compareEnabled">Comparar antes y después</sp-checkbox>
         <div class="level hidden" id="compareControls">
           <label>Divisor antes / después · %<input id="comparePosition" max="100" min="0" type="number" value="50">
           </label>
@@ -316,8 +313,8 @@
         </div>
         <section class="control-card" id="cleanupControls">
           <h2>Limpieza de partículas</h2>
-          <div class="segmented" aria-label="Limpieza de partículas">
-            <button id="cleanupNone">Sin</button><button id="cleanupLow">Baja</button><button id="cleanupStandard" class="active">Normal</button><button id="cleanupHigh">Alta</button>
+          <div class="segmented" role="group" aria-label="Limpieza de partículas">
+            <sp-action-button size="s" quiet id="cleanupNone">Sin</sp-action-button><sp-action-button size="s" quiet id="cleanupLow">Baja</sp-action-button><sp-action-button size="s" quiet id="cleanupStandard" class="active">Normal</sp-action-button><sp-action-button size="s" quiet id="cleanupHigh">Alta</sp-action-button>
           </div>
           <label class="hidden">Nivel<select id="cleanup">
               <option value="none">Sin limpieza</option>
@@ -327,20 +324,19 @@
             </select>
           </label>
           <p class="hidden">High puede borrar detalles. La salida usa solo alfa 0 o 255.</p>
-          <label class="check">
-            <input id="defringe" type="checkbox"> Tratar color contaminado en bordes</label>
+          <sp-checkbox size="s" class="check" id="defringe">Limpiar halos de color</sp-checkbox>
         </section>
         <div class="row">
-          <button id="tabColor" class="quiet">Más color</button>
-          <button id="tabDetails" class="quiet">Detalles</button>
-          <button id="toggleInspector" type="button">Inspeccionar</button>
+          <sp-action-button size="s" quiet id="tabColor" class="quiet">Color</sp-action-button>
+          <sp-action-button size="s" quiet id="tabDetails" class="quiet" title="Protección de detalles">Detalles</sp-action-button>
+          <sp-action-button size="s" quiet id="toggleInspector">Inspeccionar</sp-action-button>
         </div>
         <div class="hidden">
-          <button class="quiet" id="tabTrama">Editar trama</button>
+          <sp-action-button size="s" quiet class="quiet" id="tabTrama">Trama</sp-action-button>
         </div>
         <section class="control-card hidden" id="colorControls">
           <h2>Corregir color a eliminar</h2>
-          <label>HEX<input id="keyEdit" maxlength="7" value="#000000">
+          <label>HEX<sp-textfield size="s" label="Color a eliminar HEX" id="keyEdit" maxlength="7" value="#000000"></sp-textfield>
           </label>
           <div class="row">
             <label>Tolerancia %<input id="toleranceEdit" max="99" min="0" type="number" value="2">
@@ -348,8 +344,7 @@
             <label>Transición %<input id="softnessEdit" max="100" min="0.1" step="0.1" type="number" value="35">
             </label>
           </div>
-          <label class="check">
-            <input id="recover" type="checkbox"> Recuperar color mezclado con la prenda</label>
+          <sp-checkbox size="s" class="check" id="recover">Recuperar color mezclado con la prenda</sp-checkbox>
           <p class="hint">También puedes tomar el color haciendo clic en la vista Original.</p>
           <div class="level">
             <label>Intensidad de color · %<input id="colorBoost" max="100" min="0" type="number" value="0">
@@ -363,7 +358,7 @@
             </label>
           </div>
           <p class="hint">0 de compensación conserva RGB. El tratamiento busca color interior cerca de un borde; no actúa sobre toda la imagen.</p>
-          <label>Fondo de prenda<input id="previewColor" maxlength="7" value="#202020">
+          <label>Fondo de prenda<sp-textfield size="s" label="Fondo de prenda HEX" id="previewColor" maxlength="7" value="#202020"></sp-textfield>
           </label>
         </section>
         <section class="control-card hidden" id="protectionControls">
@@ -374,7 +369,7 @@
               <option value="selection">Selección capturada · conservar color sólido</option>
             </select>
           </label>
-          <button id="captureSelection">Capturar selección del original</button>
+          <sp-action-button size="s" quiet id="captureSelection">Capturar selección del original</sp-action-button>
           <p class="hint">Selecciona textos o logos en el documento original y captura la selección aquí. Las zonas seleccionadas con alfa ≥ 128 conservan su RGB, quedan opacas y se protegen de knockout, trama y limpieza. La protección automática conserva bordes; no recupera detalle inexistente.</p>
           <label>Radio de protección · px<input id="edgeRadius" max="4" min="1" step="1" type="number" value="1">
           </label>
@@ -405,7 +400,7 @@
                 <option value="original">Original · sin tramado</option>
                 <option selected="" value="garment">Después · sobre la prenda</option>
                 <option value="beforeGarment">Antes · sobre la prenda</option>
-                <option value="compare">Comparar antes / después · sobre la prenda</option>
+                <option value="compare">Comparar antes y después · sobre la prenda</option>
                 <option value="transparent">Trama · transparencia</option>
                 <option value="mask">Máscara · blanco y negro</option>
                 <option value="removed">Eliminado por limpieza</option>
@@ -430,7 +425,7 @@
                 <option value="200">200% · vista JPEG</option>
               </select>
             </label>
-            <button class="quiet" id="togglePreviewExtras">Fondo y navegación</button>
+            <sp-action-button size="s" quiet class="quiet" id="togglePreviewExtras">Fondo y navegación</sp-action-button>
           </div>
           <div class="hidden" id="previewExtras">
             <div class="row">
@@ -441,55 +436,57 @@
             </div>
             <p class="hint">Detalle hasta 512 × 512 píxeles finales. Durante el ajuste la limpieza del borde puede variar; al terminar se muestra el recorte del resultado completo. Inspecciona el lienzo al 100%.</p>
             <div class="row">
-              <button id="panLeft">←</button>
-              <button id="panRight">→</button>
-              <button id="panUp">↑</button>
-              <button id="panDown">↓</button>
+              <sp-action-button size="s" quiet id="panLeft">←</sp-action-button>
+              <sp-action-button size="s" quiet id="panRight">→</sp-action-button>
+              <sp-action-button size="s" quiet id="panUp">↑</sp-action-button>
+              <sp-action-button size="s" quiet id="panDown">↓</sp-action-button>
             </div>
           </div>
         </section>
         <p class="hidden" id="sessionInfo"></p>
         <p class="warning" id="qualityWarnings"></p>
+        </div>
+        <div class="stage-actions">
         <p class="tag" id="liveState">Vista y lienzo sincronizados</p>
         <div class="row">
-          <button id="cancel">Cancelar</button>
-          <button class="primary" id="apply">Aplicar</button>
+          <sp-button size="m" variant="secondary" treatment="outline" id="cancel">Cancelar</sp-button>
+          <sp-button size="m" variant="accent" treatment="fill" class="primary" id="apply">Aplicar</sp-button>
         </div>
         <div class="row secondary-actions">
-          <button id="back">Cambiar tamaño</button>
-          <button id="saveProject">Guardar proyecto</button>
+          <sp-action-button size="s" quiet id="back">Cambiar tamaño</sp-action-button>
+          <sp-action-button size="s" quiet id="saveProject">Guardar proyecto</sp-action-button>
         </div>
       </div>
+        </div>
       <div class="hidden" id="resultStage">
         <section>
           <h2>Resultado preparado</h2>
           <p id="resultInfo"></p>
-          <button class="primary" id="export">Exportar PNG · 300 ppp</button>
-          <button id="newJob">Nueva preparación</button>
-          <button id="openBatchResult">Procesar lote con estos ajustes</button>
+          <sp-button size="m" variant="accent" treatment="fill" class="primary" id="export">Exportar PNG · 300 ppp</sp-button>
+          <sp-action-button size="s" quiet id="newJob">Nueva preparación</sp-action-button>
+          <sp-action-button size="s" quiet id="openBatchResult">Procesar lote con estos ajustes</sp-action-button>
         </section>
-        <button id="reopenLastProject">Reabrir último proyecto guardado</button>
+        <sp-action-button size="s" quiet id="reopenLastProject">Reabrir último proyecto guardado</sp-action-button>
       </div>
       <div class="hidden" id="batchStage">
         <section>
           <h2>Imágenes × tallas · exportación automática</h2>
-          <button id="batchFiles">Seleccionar imágenes</button>
+          <sp-action-button size="s" quiet id="batchFiles">Seleccionar imágenes</sp-action-button>
           <p class="hint" id="batchFilesInfo">Sin archivos seleccionados. PNG, JPG, TIFF o PSD RGB/8 bits.</p>
-          <button id="batchFolder">Elegir carpeta de destino</button>
+          <sp-action-button size="s" quiet id="batchFolder">Elegir carpeta de destino</sp-action-button>
           <p class="hint" id="batchFolderInfo">Sin carpeta de destino.</p>
           <p class="hint">Se crea una carpeta nueva por ejecución, con subcarpetas por talla. El origen no se sobrescribe. Se procesa una imagen/versión a la vez.</p>
           <div class="row">
-            <button id="addBatchFiles">Agregar archivos</button>
-            <button id="removeBatchFile">Quitar imagen elegida</button>
+            <sp-action-button size="s" quiet id="addBatchFiles">Agregar archivos</sp-action-button>
+            <sp-action-button size="s" quiet id="removeBatchFile">Quitar imagen elegida</sp-action-button>
           </div>
           <label>Imagen para excepciones<select id="batchImageIndex">
               <option value="0">Sin imágenes</option>
             </select>
           </label>
-          <button id="toggleAssignment">Tallas y receta de esta imagen</button>
+          <sp-action-button size="s" quiet id="toggleAssignment">Tallas y receta de esta imagen</sp-action-button>
           <div class="hidden" id="assignmentPanel">
-            <label class="check">
-              <input checked="" id="imageUseCommon" type="checkbox"> Usar tallas y posición comunes</label>
+            <sp-checkbox size="s" class="check" checked="" id="imageUseCommon">Usar tallas y posición comunes</sp-checkbox>
             <label>Prenda de esta imagen<select id="imageGarment">
                 <option value="adult">Adulto unisex</option>
                 <option value="child">Infantil</option>
@@ -501,17 +498,16 @@
                 <option value="">Ajustes comunes</option>
               </select>
             </label>
-            <label class="check">
-              <input id="imageOwnColor" type="checkbox"> Color distinto para esta imagen</label>
-            <label>HEX de esta imagen<input id="imageKey" value="#000000">
+            <sp-checkbox size="s" class="check" id="imageOwnColor">Color distinto para esta imagen</sp-checkbox>
+            <label>HEX de esta imagen<sp-textfield size="s" label="imageKey" id="imageKey" value="#000000"></sp-textfield>
             </label>
-            <button id="saveAssignment">Guardar excepción</button>
+            <sp-action-button size="s" quiet id="saveAssignment">Guardar excepción</sp-action-button>
             <p class="hint" id="assignmentInfo"></p>
           </div>
         </section>
         <section id="batchAreasPanel" class="compact-areas">
           <h2>Tallas y áreas máximas · cm</h2>
-          <button id="toggleBatchAreas" type="button">Editar medidas por talla</button>
+          <sp-action-button size="s" quiet id="toggleBatchAreas">Editar medidas por talla</sp-action-button>
           <label>Prenda común<select id="batchGarment">
               <option value="adult">Adulto unisex</option>
               <option value="child">Infantil</option>
@@ -531,96 +527,80 @@
             <span>Alto · cm</span>
           </div>
           <div class="size-row" id="batchRowXS">
-            <label class="check">
-              <input id="batchXS" type="checkbox"> XS</label>
+            <sp-checkbox size="s" class="check" id="batchXS">XS</sp-checkbox>
             <input aria-label="Ancho máximo XS" id="batchWidthXS" max="100" min="0.1" step="0.1" type="number" value="22">
             <input aria-label="Alto máximo XS" id="batchHeightXS" max="100" min="0.1" step="0.1" type="number" value="28">
           </div>
           <div class="size-row" id="batchRowS">
-            <label class="check">
-              <input id="batchS" type="checkbox"> S</label>
+            <sp-checkbox size="s" class="check" id="batchS">S</sp-checkbox>
             <input aria-label="Ancho máximo S" id="batchWidthS" max="100" min="0.1" step="0.1" type="number" value="24">
             <input aria-label="Alto máximo S" id="batchHeightS" max="100" min="0.1" step="0.1" type="number" value="30">
           </div>
           <div class="size-row" id="batchRowM">
-            <label class="check">
-              <input checked="" id="batchM" type="checkbox"> M</label>
+            <sp-checkbox size="s" class="check" checked="" id="batchM">M</sp-checkbox>
             <input aria-label="Ancho máximo M" id="batchWidthM" max="100" min="0.1" step="0.1" type="number" value="27">
             <input aria-label="Alto máximo M" id="batchHeightM" max="100" min="0.1" step="0.1" type="number" value="33">
           </div>
           <div class="size-row" id="batchRowL">
-            <label class="check">
-              <input checked="" id="batchL" type="checkbox"> L</label>
+            <sp-checkbox size="s" class="check" checked="" id="batchL">L</sp-checkbox>
             <input aria-label="Ancho máximo L" id="batchWidthL" max="100" min="0.1" step="0.1" type="number" value="29">
             <input aria-label="Alto máximo L" id="batchHeightL" max="100" min="0.1" step="0.1" type="number" value="35">
           </div>
           <div class="size-row" id="batchRowXL">
-            <label class="check">
-              <input id="batchXL" type="checkbox"> XL</label>
+            <sp-checkbox size="s" class="check" id="batchXL">XL</sp-checkbox>
             <input aria-label="Ancho máximo XL" id="batchWidthXL" max="100" min="0.1" step="0.1" type="number" value="30">
             <input aria-label="Alto máximo XL" id="batchHeightXL" max="100" min="0.1" step="0.1" type="number" value="35.5">
           </div>
           <div class="size-row" id="batchRow2XL">
-            <label class="check">
-              <input id="batch2XL" type="checkbox"> 2XL</label>
+            <sp-checkbox size="s" class="check" id="batch2XL">2XL</sp-checkbox>
             <input aria-label="Ancho máximo 2XL" id="batchWidth2XL" max="100" min="0.1" step="0.1" type="number" value="31">
             <input aria-label="Alto máximo 2XL" id="batchHeight2XL" max="100" min="0.1" step="0.1" type="number" value="38">
           </div>
           <div class="size-row" id="batchRow3XL">
-            <label class="check">
-              <input id="batch3XL" type="checkbox"> 3XL</label>
+            <sp-checkbox size="s" class="check" id="batch3XL">3XL</sp-checkbox>
             <input aria-label="Ancho máximo 3XL" id="batchWidth3XL" max="100" min="0.1" step="0.1" type="number" value="31.5">
             <input aria-label="Alto máximo 3XL" id="batchHeight3XL" max="100" min="0.1" step="0.1" type="number" value="40">
           </div>
           <div class="size-row hidden" id="batchRow2">
-            <label class="check">
-              <input id="batch2" type="checkbox"> 2 infantil</label>
+            <sp-checkbox size="s" class="check" id="batch2">2 infantil</sp-checkbox>
             <input aria-label="Ancho 2 infantil" id="batchWidth2" max="100" min="0.1" type="number" value="16.0">
             <input aria-label="Alto 2 infantil" id="batchHeight2" max="100" min="0.1" type="number" value="20">
           </div>
           <div class="size-row hidden" id="batchRow4">
-            <label class="check">
-              <input id="batch4" type="checkbox"> 4 infantil</label>
+            <sp-checkbox size="s" class="check" id="batch4">4 infantil</sp-checkbox>
             <input aria-label="Ancho 4 infantil" id="batchWidth4" max="100" min="0.1" type="number" value="17.5">
             <input aria-label="Alto 4 infantil" id="batchHeight4" max="100" min="0.1" type="number" value="22">
           </div>
           <div class="size-row hidden" id="batchRow6">
-            <label class="check">
-              <input id="batch6" type="checkbox"> 6 infantil</label>
+            <sp-checkbox size="s" class="check" id="batch6">6 infantil</sp-checkbox>
             <input aria-label="Ancho 6 infantil" id="batchWidth6" max="100" min="0.1" type="number" value="19.0">
             <input aria-label="Alto 6 infantil" id="batchHeight6" max="100" min="0.1" type="number" value="24">
           </div>
           <div class="size-row hidden" id="batchRow8">
-            <label class="check">
-              <input id="batch8" type="checkbox"> 8 infantil</label>
+            <sp-checkbox size="s" class="check" id="batch8">8 infantil</sp-checkbox>
             <input aria-label="Ancho 8 infantil" id="batchWidth8" max="100" min="0.1" type="number" value="20.5">
             <input aria-label="Alto 8 infantil" id="batchHeight8" max="100" min="0.1" type="number" value="26">
           </div>
           <div class="size-row hidden" id="batchRow10">
-            <label class="check">
-              <input id="batch10" type="checkbox"> 10 infantil</label>
+            <sp-checkbox size="s" class="check" id="batch10">10 infantil</sp-checkbox>
             <input aria-label="Ancho 10 infantil" id="batchWidth10" max="100" min="0.1" type="number" value="22.0">
             <input aria-label="Alto 10 infantil" id="batchHeight10" max="100" min="0.1" type="number" value="28">
           </div>
           <div class="size-row hidden" id="batchRow12">
-            <label class="check">
-              <input id="batch12" type="checkbox"> 12 infantil</label>
+            <sp-checkbox size="s" class="check" id="batch12">12 infantil</sp-checkbox>
             <input aria-label="Ancho 12 infantil" id="batchWidth12" max="100" min="0.1" type="number" value="23.5">
             <input aria-label="Alto 12 infantil" id="batchHeight12" max="100" min="0.1" type="number" value="30">
           </div>
           <p class="hint">Elige cualquier cantidad de archivos y tallas. Cada variante se dimensiona desde el origen; no se escala una trama ya hecha.</p>
           <p class="tag" id="batchCount">0 imágenes · 2 tallas · 0 resultados</p>
-          <label class="check">
-            <input id="batchBothSides" type="checkbox"> Crear frontal y espalda en este lote</label>
-          <label class="check">
-            <input id="convertCopy" type="checkbox"> Convertir modos incompatibles en una copia RGB / 8 bits</label>
+          <sp-checkbox size="s" class="check" id="batchBothSides">Crear frontal y espalda en este lote</sp-checkbox>
+          <sp-checkbox size="s" class="check" id="convertCopy">Convertir modos incompatibles en una copia RGB / 8 bits</sp-checkbox>
         </section>
-        <button id="toggleBatchCommon" type="button">Ajustes compartidos</button>
+        <sp-action-button size="s" quiet id="toggleBatchCommon">Ajustes compartidos</sp-action-button>
         <section id="batchCommonPanel" class="hidden">
           <h2>Ajustes compartidos del lote</h2>
-          <label class="check">
-            <input checked="" id="knockoutBatch" type="checkbox"> Eliminar color</label>
-          <label>HEX a eliminar<input id="keyBatch" maxlength="7" value="#000000">
+          <sp-checkbox size="s" class="check" checked="" id="knockoutBatch">Eliminar color</sp-checkbox>
+          <label>HEX a eliminar<sp-textfield size="s" label="keyBatch" id="keyBatch" maxlength="7" value="#000000"></sp-textfield>
           </label>
           <div class="row">
             <label>Tolerancia %<input id="toleranceBatch" max="99" min="0" type="number" value="2">
@@ -637,9 +617,9 @@
             </select>
           </label>
           <div class="row">
-            <label>Lineatura · LPI<input id="lpiBatch" max="75" min="5" type="number" value="30">
+            <label>Lineatura (LPI)<input id="lpiBatch" max="75" min="5" type="number" value="30">
             </label>
-            <label>Ángulo · °<input id="angleBatch" max="180" min="-180" type="number" value="33">
+            <label>Ángulo (°)<input id="angleBatch" max="180" min="-180" type="number" value="33">
             </label>
           </div>
           <label>Limpieza<select id="cleanupBatch">
@@ -656,10 +636,9 @@
           </label>
           <p class="hint" id="batchSettingsInfo"></p>
           <p class="hint">Ajustes comunes para todas las imágenes. Abre los controles avanzados o asigna una receta distinta a una imagen.</p>
-          <button id="toggleBatchAdvanced">Niveles, color y detalle</button>
+          <sp-action-button size="s" quiet id="toggleBatchAdvanced">Niveles, color y detalle</sp-action-button>
           <div class="hidden" id="batchAdvanced">
-            <label class="check">
-              <input checked="" id="halftoneBatch" type="checkbox"> Activar trama</label>
+            <sp-checkbox size="s" class="check" checked="" id="halftoneBatch">Activar trama</sp-checkbox>
             <label>Umbral sin trama<input id="alphaThresholdBatch" max="255" min="1" type="number" value="128">
             </label>
             <label>Negro<input id="inputBlackBatch" max="254" min="0" step="1" type="number" value="7">
@@ -686,25 +665,25 @@
             </label>
             <label>Sensibilidad de borde<input id="edgeContrastBatch" max="255" min="16" step="1" type="number" value="96">
             </label>
-            <label class="check">
-              <input id="recoverBatch" type="checkbox"> Recuperar mezcla con la prenda</label>
-            <label class="check">
-              <input id="defringeBatch" type="checkbox"> Tratar bordes</label>
+            <sp-checkbox size="s" class="check" id="recoverBatch">Recuperar mezcla con la prenda</sp-checkbox>
+            <sp-checkbox size="s" class="check" id="defringeBatch">Tratar bordes</sp-checkbox>
           </div>
         </section>
-        <button id="batchPreflight">Verificar archivos y variantes</button>
+        <sp-action-button size="s" quiet id="batchPreflight">Verificar archivos y variantes</sp-action-button>
         <p class="hint" id="batchPreflightInfo"></p>
-        <button id="batchResume">Reanudar un lote guardado</button>
-        <button class="primary" id="batchRun">Procesar y exportar todas las variantes</button>
-        <button disabled="" id="batchCancel">Detener lote</button>
-        <button id="batchBack">Volver</button>
+        <sp-action-button size="s" quiet id="batchResume">Reanudar un lote guardado</sp-action-button>
+        <sp-button size="m" variant="accent" treatment="fill" class="primary" id="batchRun">Procesar y exportar todas las variantes</sp-button>
+        <sp-action-button size="s" quiet disabled="" id="batchCancel">Detener lote</sp-action-button>
+        <sp-action-button size="s" quiet id="batchBack">Volver</sp-action-button>
         <p id="batchProgress" role="status">Elige archivos, destino y tallas.</p>
         <p class="hint">Puedes detenerlo entre bloques. Los PNG completados se conservan. reporte.csv y ajustes-y-resultados.json registran resultados, errores y cancelaciones.</p>
       </div>
-      <button class="hidden" id="cancelPreparation">Detener preparación</button>
+      <sp-action-button size="s" quiet class="hidden" id="cancelPreparation">Detener preparación</sp-action-button>
       <p id="status" role="status">Abre tu diseño en Photoshop para empezar.</p>
       <footer id="footerVersion"></footer>
     </main>
+    </sp-theme>
+    <script src="vendor/spectrum.js"></script>
     <script src="main.js"></script>
   </body>
 </html>

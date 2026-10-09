@@ -11,6 +11,8 @@ OUT = ROOT / 'dist'
 OUT.mkdir(exist_ok=True)
 m = json.loads((ROOT / 'plugin/manifest.json').read_text())
 version = m['version']
+if not (ROOT / 'plugin/vendor/spectrum.js').is_file():
+    raise RuntimeError('Run npm ci and npm run build:ui before packaging Spectrum.')
 
 def write_zip(destination, entries):
     with ZipFile(destination, 'w', ZIP_DEFLATED) as archive:
@@ -31,7 +33,7 @@ write_zip(updater, [(p.name, p) for p in sorted((ROOT/'installer/windows').iterd
 entries = []
 for p in sorted(ROOT.rglob('*')):
     rel = p.relative_to(ROOT)
-    if not p.is_file() or '.git' in rel.parts or 'dist' in rel.parts or '__pycache__' in rel.parts: continue
+    if not p.is_file() or '.git' in rel.parts or 'dist' in rel.parts or '__pycache__' in rel.parts or 'node_modules' in rel.parts or 'test-results' in rel.parts or 'playwright-report' in rel.parts: continue
     entries.append((f'Halftone-DTF/{rel.as_posix()}',p))
 entries += [(f'Halftone-DTF/installer/{ccx.name}',ccx),(f'Halftone-DTF/installer/{sha.name}',sha)]
 project = OUT / f'Halftone-DTF-{version}-proyecto.zip'
