@@ -1,0 +1,15 @@
+{
+  "schema": "halftone-release-validation",
+  "version": "0.5.0",
+  "status": "candidate",
+  "required": {
+    "official_ccx_packaging": {"passed": false, "evidence": ""},
+    "clean_install_supported_hosts": {"passed": false, "evidence": ""},
+    "native_photoshop_validation": {"passed": false, "evidence": ""},
+    "native_panel_keyboard_and_sliders": {"passed": false, "evidence": ""},
+    "large_image_memory_latency_cancel": {"passed": false, "evidence": ""},
+    "native_batch_resume_after_restart": {"passed": false, "evidence": ""},
+    "rip_size_color_and_alpha": {"passed": false, "evidence": ""},
+    "transfer_adhesion_and_wash": {"passed": false, "evidence": ""}
+  }
+}
