@@ -56,7 +56,7 @@ test('invalid final levels keep editing open; correction and Reset recover; Back
   e.inputBlack.value=250;await e.inputBlack.emit('input');e.inputWhite.value=100;await e.inputWhite.emit('input');
   await e.apply.emit('click');assert.equal(e.editStage.className,'');assert.match(e.status.textContent,/negro de entrada/);
   assert.ok(!calls.some(c=>c[0]==='release'));
-  await e.resetLevels.emit('click');assert.equal(e.inputBlack.value,0);assert.equal(e.inputMidtone.value,1);assert.equal(e.inputWhite.value,255);
+  await e.resetLevels.emit('click');assert.equal(e.inputBlack.value,7);assert.equal(e.inputMidtone.value,2);assert.equal(e.inputWhite.value,100);
   await e.back.emit('click');assert.equal(e.prepareStage.className,'');assert.equal(calls.filter(c=>c[0]==='cancel').length,1);
   assert.ok(!calls.some(c=>c[0]==='release'));
 });
@@ -65,7 +65,7 @@ test('Cancel with invalid editing values cannot trap the next preparation',async
   e.inputBlack.value=250;await e.inputBlack.emit('input');e.inputWhite.value=100;await e.inputWhite.emit('input');
   await e.cancel.emit('click');await e.next.emit('click');
   assert.equal(e.editStage.className,'');assert.equal(calls.filter(c=>c[0]==='begin').length,2);
-  assert.equal(e.inputBlack.value,0);assert.equal(e.inputWhite.value,255);
+  assert.equal(e.inputBlack.value,7);assert.equal(e.inputWhite.value,100);
   await e.cancel.emit('click');
 });
 
@@ -88,8 +88,8 @@ test('new UI tabs show only task-specific controls; cm/in switches preserve exac
  const {elements:e,calls}=fixture();e.widthCM.value=20;await e.widthCM.emit('input');
  for(let i=0;i<5;i++){e.units.value='in';await e.units.emit('change');assert.ok(Math.abs(Number(e.widthCM.value)-20/2.54)<1e-6);e.units.value='cm';await e.units.emit('change');}
  assert.equal(Number(e.widthCM.value),20);await e.next.emit('click');assert.equal(calls.find(c=>c[0]==='begin')[2].widthCM,20);
- await e.tabColor.emit('click');assert.equal(e.colorControls.className,'control-card');assert.ok(e.levelsControls.className.includes('hidden'));
- await e.tabDetails.emit('click');assert.equal(e.cleanupControls.className,'control-card');assert.ok(e.colorControls.className.includes('hidden'));await e.cancel.emit('click');
+  await e.tabColor.emit('click');assert.equal(e.colorControls.className,'control-card');assert.ok(!e.levelsControls.className.includes('hidden'));
+  await e.tabDetails.emit('click');assert.equal(e.cleanupControls.className,'control-card');assert.equal(e.protectionControls.className,'control-card');await e.cancel.emit('click');
 });
 test('recipes save calibrated profiles, restore independent controls and reject invalid import without losing them',async()=>{
  const {elements:e,calls,storageFS,values}=fixture();e.recipeName.value='Algodón negro';e.profileMachine.value='Mimaki';e.profileCalibrated.checked=true;e.shadowBoost.value=25;e.cleanup.value='none';
@@ -118,4 +118,19 @@ test('one batch can assign adult and child sizes to different images without inv
  assert.equal(e.imageSizeM.parentElement.className,'check hidden');assert.equal(e.imageSize4.parentElement.className,'check');
  await e.saveAssignment.emit('click');await e.batchRun.emit('click');const jobs=calls.filter(c=>c[0]==='begin');assert.equal(jobs.length,4);
  assert.equal(jobs[0][2].garment,'child');assert.equal(jobs[2][2].garment,'adult');assert.ok(jobs[0][2].widthCM<jobs[2][2].widthCM);
+});
+
+test('reference defaults, stage-one screen controls and compact editor share one settings model',async()=>{
+ const {elements:e,calls}=fixture();assert.equal(Number(e.inputBlack.value),7);assert.equal(Number(e.inputMidtone.value),2);assert.equal(Number(e.inputWhite.value),100);
+ assert.equal(Number(e.lpi.value),30);assert.equal(Number(e.angle.value),33);
+ e.lpi.value=42;await e.lpi.emit('input');await e.next.emit('click');assert.equal(calls.find(c=>c[0]==='begin')[2].lpi,42);
+ await e.editScreen.emit('click');assert.equal(Number(e.lpiEdit.value),42);e.angleEdit.value=18;await e.angleEdit.emit('input');assert.equal(Number(e.angle.value),18);
+ await e.apply.emit('click');assert.equal(calls.find(c=>c[0]==='update')[1].angle,18);
+});
+test('four view buttons use the Photoshop workspace without retriggering screening',async()=>{
+ const {elements:e,calls,host}=fixture();host.workspaceView=async(s,mode)=>calls.push(['workspace',mode]);host.clearWorkspace=async()=>calls.push(['clearWorkspace']);
+ await e.next.emit('click');assert.ok(calls.some(c=>c[0]==='workspace'&&c[1]==='garment'));
+ await e.viewMask.emit('click');await new Promise(r=>setTimeout(r,0));assert.equal(e.viewMode.value,'mask');assert.ok(calls.some(c=>c[0]==='workspace'&&c[1]==='mask'));
+ await e.viewTransparent.emit('click');await new Promise(r=>setTimeout(r,0));assert.equal(e.viewMode.value,'transparent');assert.equal(calls.filter(c=>c[0]==='update').length,0);
+ await e.apply.emit('click');assert.ok(calls.findIndex(c=>c[0]==='clearWorkspace')<calls.findIndex(c=>c[0]==='release'));
 });

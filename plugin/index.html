@@ -1,104 +1,691 @@
 <!DOCTYPE html>
-
-<html><head><meta charset="utf-8"/><link href="styles.css" rel="stylesheet"/></head>
-<body><main>
-<header><div class="brand"><h1>HALFTONE <span>STUDIO</span></h1><span class="badge">DTF · 300 ppp</span></div><p id="stepLabel">1 · Preparar impresión</p><div class="steps"><span id="stepPrepare">01 Preparar</span><span id="stepEdit">02 Ajustar</span><span id="stepResult">03 Exportar</span></div><div class="row"><button class="quiet" id="toggleRecipes">Recetas y perfiles</button><button class="quiet" id="toggleHelp">Ayuda</button></div></header>
-<section class="hidden" id="recipesPanel"><h2>Recetas del taller</h2><label>Receta guardada<select id="recipeSelect"><option value="">Elegir receta…</option></select></label><div class="row"><button id="applyRecipe">Usar</button><button id="deleteRecipe">Eliminar</button></div><label>Nombre<input id="recipeName" maxlength="80" placeholder="Algodón negro · detalle fino"/></label><div class="row"><label>Marca<input id="profileBrand"/></label><label>Modelo<input id="profileModel"/></label></div><div class="row"><label>Equipo<input id="profileMachine" placeholder="Mimaki TXF300-75"/></label><label>RIP<input id="profileRIP" placeholder="RasterLink 7"/></label></div><label>Material<input id="profileMaterial" placeholder="Playera algodón · film y polvo"/></label><label class="check"><input id="profileCalibrated" type="checkbox"/> Probada físicamente en este equipo y material</label><button class="primary" id="saveRecipe">Guardar receta y áreas actuales</button><div class="row"><button id="importRecipes">Importar</button><button id="exportRecipes">Exportar</button></div><p class="hint">Guarda ajustes, medidas y notas. Esta marca registra tu prueba; no certifica la impresión.</p></section>
-<section class="hidden" id="helpPanel"><h2>Guía rápida</h2><p><strong>1. Preparar:</strong> elige origen, medida final y color de prenda. Cada talla se dimensiona antes de generar puntos.</p><p><strong>2. Ajustar:</strong> revisa la vista, cambia trama y niveles. Los niveles controlan cobertura; sombras y color modifican RGB.</p><p><strong>3. Exportar:</strong> conserva el resultado y guarda PNG. Mantén tamaño y alfa binario en el RIP.</p><p><strong>LPI + limpieza:</strong> una trama fina tiene puntos pequeños. Si desaparecen degradados, baja LPI/diámetro o elige Sin limpieza. La vista Eliminado muestra partículas retiradas.</p><p><strong>Protección:</strong> la selección puede conservar el color del knockout. Captúrala en el original; la automática conserva bordes duros.</p><p><strong>Sin trama:</strong> usa un umbral de alfa. Los degradados se vuelven recortes sólidos.</p><p><strong>Proyecto:</strong> guarda el origen ya dimensionado y la selección antes de Aplicar. Reábrelo para cambiar ajustes sin acumular tramado; cambiar medida requiere preparar otra vez el original.</p><p><strong>Memoria:</strong> disco para imágenes grandes. El presupuesto disponible lo indicas tú; Photoshop necesita espacio adicional. Limpia cachés abandonadas después de una interrupción.</p><p><strong>Lotes:</strong> cantidad flexible y tallas elegibles. Puedes asignar excepciones por imagen. Detener guarda el avance; Reanudar verifica resultados existentes.</p><p><strong>Prenda:</strong> el mockup es una plantilla plana medida, no una simulación de tinta o textura. Confirma área y plancha.</p><p><strong>Color:</strong> salida sRGB/8 bits. Convertir copia conserva tu documento original. La compensación y el de-fringe requieren prueba de impresión.</p><button id="diagnosticExport">Exportar diagnóstico de sesión</button><button id="nativeSelfTest">Ejecutar comprobación en Photoshop</button></section><div id="prepareStage">
-<p class="eyebrow">Empieza por la impresión que vas a entregar.</p><section><h2>Origen</h2>
-<label>Procesar<select id="source"><option value="layer">Capa seleccionada</option><option value="composite">Composición visible</option></select></label>
-<button id="useCurrent">Usar documento actual</button><p class="hint" id="sourceInfo">Sin documento.</p>
-<button class="quiet" id="convertCurrent">Crear copia RGB / 8 bits</button></section>
-<section><h2>Tamaño final · proporción vinculada</h2>
-<div class="row"><label>Unidad<select id="units"><option value="cm">Centímetros</option><option value="in">Pulgadas</option></select></label><label>Prenda<select id="garment"><option value="adult">Adulto unisex</option><option value="child">Infantil</option></select></label></div><div class="row"><label>Ancho · medida final<input id="widthCM" max="100" min="0.01" step="0.01" type="number"/></label><label>Alto · medida final<input id="heightCM" max="100" min="0.01" step="0.01" type="number"/></label></div>
-<input id="sizeAxis" type="hidden" value="width"/>
-<p class="hint" id="pixelInfo">Salida a 300 ppp.</p><p class="hint" id="upscaleInfo"></p>
-<div class="row"><label>Posición<select id="placement"><option value="front">Frontal completo</option><option value="back">Espalda completa</option><option value="chest">Pecho izquierdo</option><option value="sleeve">Manga</option><option value="neck">Nuca</option></select></label><label>Talla<select id="shirtSize"><option>XS</option><option>S</option><option selected="">M</option><option>L</option><option>XL</option><option>2XL</option><option>3XL</option></select></label></div>
-<button id="applyPreset">Aplicar tamaño por talla</button><p class="hint" id="presetInfo">Áreas orientativas ajustables. El arte encaja sin deformarse; confirma medidas en la prenda.</p>
-<p class="hint">Se dimensiona el lienzo completo. Recorta márgenes vacíos para medir solo el arte.</p>
-<label class="check"><input id="trimArt" type="checkbox"/> Medir solo el arte · recortar márgenes transparentes</label></section>
-<section><h2>Color a eliminar · knockout</h2>
-<label class="check"><input checked="" id="knockout" type="checkbox"/> Eliminar color</label>
-<div class="row"><label>HEX sRGB<input id="key" maxlength="7" value="#000000"/></label><button id="foreground">Color frontal</button></div>
-<div class="row"><label>Tolerancia %<input id="tolerance" max="99" min="0" type="number" value="2"/></label><label>Transición %<input id="softness" max="100" min="0.1" step="0.1" type="number" value="35"/></label></div>
-</section>
-<button class="primary" id="next">Siguiente · preparar y tramar</button>
-<button id="openBatch">Procesar lote · imágenes × tallas</button>
-<label>Memoria<select id="memoryMode"><option value="auto">Automática · caché temporal para archivos grandes</option><option value="disk">Siempre usar caché en disco</option></select></label>
-<p class="hint">Se crea una copia a 300 ppp. En la siguiente etapa podrás ajustar la trama y corregir el color.</p>
-<div class="row"><button id="openProject">Abrir proyecto editable</button><button id="cleanupCaches">Limpiar cachés abandonadas</button></div><label>Disco disponible para este trabajo · GB<input id="diskBudgetGB" max="100000" min="0" step="0.1" type="number" value="0"/></label><p class="hint">0 = espacio no comprobado. Estimación para caché y salida; no incluye el scratch de Photoshop.</p><p class="hint" id="resourceInfo"></p></div>
-<div class="hidden" id="editStage"><section class="preview-card"><h2>Revisa el resultado</h2>
-<div class="hidden" id="mockupControls"><div class="row"><label>Ancho de pecho · cm<input id="mockupChestCM" max="100" min="15" type="number" value="52"/></label><label>Alto de prenda · cm<input id="mockupHeightCM" max="140" min="20" type="number" value="72"/></label></div><div class="row"><label>Centro X · %<input id="mockupX" max="100" min="0" type="number" value="50"/></label><label>Inicio Y · %<input id="mockupY" max="100" min="0" type="number" value="18"/></label></div><p class="hint">Plantilla plana a escala. Ajusta con las medidas reales de la prenda; no representa textura ni tinta.</p></div><div class="row"><label>Vista<select id="viewMode"><option value="original">Original · sin tramado</option><option selected="" value="garment">Después · sobre la prenda</option><option value="beforeGarment">Antes · sobre la prenda</option><option value="compare">Comparar antes / después · sobre la prenda</option><option value="transparent">Trama · transparencia</option><option value="mask">Máscara · blanco y negro</option><option value="removed">Eliminado por limpieza</option><option value="protection">Detalle protegido</option></select></label><label>Encuadre<select id="previewScope"><option value="detail">Detalle</option><option selected="" value="overview">Imagen completa</option><option value="mockup">Colocado en prenda</option></select></label></div><p class="tag" id="viewLabel"></p><div id="previewViewport"><img alt="Detalle de la imagen procesada" id="previewImage"/></div><div class="level hidden" id="compareControls"><label>Divisor antes / después · %<input id="comparePosition" max="100" min="0" type="number" value="50"/></label><sp-slider id="compareSlider" max="100" min="0" show-value="false" value="50"></sp-slider></div><div class="row"><label>Zoom visual<select id="previewZoom"><option value="fit">Ajustar al panel</option><option value="100">100% · vista JPEG</option><option value="200">200% · vista JPEG</option></select></label><button class="quiet" id="togglePreviewExtras">Fondo y navegación</button></div><div class="hidden" id="previewExtras"><label class="check"><input checked="" id="linkBackground" type="checkbox"/> Vincular fondo al color eliminado</label><label>Fondo · HEX sRGB<input id="previewColor" maxlength="7" value="#202020"/></label><div class="row"><label>Centro X %<input id="focusX" max="100" min="0" type="number" value="50"/></label><label>Centro Y %<input id="focusY" max="100" min="0" type="number" value="50"/></label></div><p class="hint">Detalle hasta 512 × 512 píxeles finales. Durante el ajuste la limpieza del borde puede variar; al terminar se muestra el recorte del resultado completo. Inspecciona el lienzo al 100%.</p><div class="row"><button id="panLeft">←</button><button id="panRight">→</button><button id="panUp">↑</button><button id="panDown">↓</button></div></div></section>
-<p class="hint" id="sessionInfo"></p><p class="tag" id="liveState">Vista y lienzo sincronizados</p>
-<div class="tabs"><button class="active" id="tabTrama">Trama</button><button id="tabColor">Color</button><button id="tabDetails">Detalle</button></div><section class="control-card" id="tramaControls"><h2>Trama</h2>
-<label>Forma<select id="shape"><option value="round">Redonda</option><option value="ellipse">Elipse 2:1</option><option value="square">Cuadrada</option><option value="diamond">Diamante</option><option value="line">Líneas</option></select></label>
-<div class="row"><label>Lineatura · LPI<input id="lpi" max="75" min="5" type="number" value="35"/></label><label>Ángulo · °<input id="angle" max="180" min="-180" type="number" value="45"/></label></div>
-<p class="hint">A 300 ppp se admiten hasta 75 LPI. Más píxeles por celda permiten mejores gradaciones.</p>
-<label class="check"><input checked="" id="halftone" type="checkbox"/> Activar trama de semitonos</label><label>Umbral de alfa · sin trama<input id="alphaThreshold" max="255" min="1" type="number" value="128"/></label></section>
-<section class="control-card" id="levelsControls"><h2>Niveles de entrada · máscara de cobertura</h2>
-<div class="level"><label>Negro · Black<input id="inputBlack" max="254" min="0" step="1" type="number" value="0"/></label><sp-slider id="inputBlackSlider" max="254" min="0" show-value="false" value="0"></sp-slider></div>
-<div class="level"><label>Medios tonos · Midtone<input id="inputMidtone" max="9.99" min="0.1" step="0.01" type="number" value="1"/></label><sp-slider id="inputMidtoneSlider" max="9.99" min="0.1" show-value="false" step="0.01" value="1"></sp-slider></div>
-<div class="level"><label>Blanco · White<input id="inputWhite" max="255" min="1" step="1" type="number" value="255"/></label><sp-slider id="inputWhiteSlider" max="255" min="1" show-value="false" value="255"></sp-slider></div>
-<h2>Niveles de salida · Output Levels</h2>
-<div class="level"><label>Negro de salida<input id="outputBlack" max="255" min="0" step="1" type="number" value="0"/></label><sp-slider id="outputBlackSlider" max="255" min="0" show-value="false" value="0"></sp-slider></div>
-<div class="level"><label>Blanco de salida<input id="outputWhite" max="255" min="0" step="1" type="number" value="255"/></label><sp-slider id="outputWhiteSlider" max="255" min="0" show-value="false" value="255"></sp-slider></div>
-<button id="resetLevels">Restablecer niveles</button>
-<p class="hint">Blanco = mayor cobertura. Reducir el blanco de salida fuerza trama en zonas sólidas. Los colores originales se conservan.</p>
-</section>
-<section class="control-card hidden" id="colorControls"><h2>Corregir color a eliminar</h2>
-<label class="check"><input checked="" id="knockoutEdit" type="checkbox"/> Eliminar color</label>
-<div class="row"><label>HEX sRGB<input id="keyEdit" maxlength="7" value="#000000"/></label><button id="foregroundEdit">Color frontal</button></div>
-<div class="row"><label>Tolerancia %<input id="toleranceEdit" max="99" min="0" type="number" value="2"/></label><label>Transición %<input id="softnessEdit" max="100" min="0.1" step="0.1" type="number" value="35"/></label></div>
-<label class="check"><input id="recover" type="checkbox"/> Recuperar color mezclado con la prenda</label>
-<p class="hint">También puedes tomar el color haciendo clic en la vista Original.</p>
-<div class="level"><label>Compensar sombras · %<input id="shadowBoost" max="100" min="0" type="number" value="0"/></label><sp-slider id="shadowBoostSlider" max="100" min="0" show-value="false" value="0"></sp-slider></div><div class="level"><label>Intensidad de color · %<input id="colorBoost" max="100" min="0" type="number" value="0"/></label><sp-slider id="colorBoostSlider" max="100" min="0" show-value="false" value="0"></sp-slider></div><label class="check"><input id="defringe" type="checkbox"/> Tratar color contaminado en bordes</label><div class="row"><label>Radio · px<input id="defringeRadius" max="4" min="1" type="number" value="2"/></label><label>Fuerza · %<input id="defringeStrength" max="100" min="0" type="number" value="100"/></label></div><p class="hint">0 de compensación conserva RGB. El tratamiento busca color interior cerca de un borde; no actúa sobre toda la imagen.</p></section>
-<section class="control-card hidden" id="protectionControls"><h2>Protección de detalles</h2>
-<label>Modo<select id="protection"><option value="off">Desactivada</option><option value="edges">Automática · bordes duros y trazos finos</option><option value="selection">Selección capturada · conservar color sólido</option></select></label>
-<button id="captureSelection">Capturar selección del original</button>
-<p class="hint">Selecciona textos o logos en el documento original y captura la selección aquí. Las zonas seleccionadas con alfa ≥ 128 conservan su RGB, quedan opacas y se protegen de knockout, trama y limpieza. La protección automática conserva bordes; no recupera detalle inexistente.</p>
-<label>Radio de protección · px<input id="edgeRadius" max="4" min="1" step="1" type="number" value="1"/></label><label>Sensibilidad de borde · contraste RGB<input id="edgeContrast" max="255" min="16" type="number" value="96"/></label></section>
-<section class="control-card hidden" id="cleanupControls"><h2>Limpieza de partículas</h2>
-<label>Nivel<select id="cleanup"><option value="none">None · sin limpieza</option><option value="low">Low · detalle fino</option><option selected="" value="standard">Standard · equilibrado</option><option value="high">High · limpieza intensa</option></select></label>
-<label>Diámetro equivalente mínimo · mm<input id="minDiameterMM" max="2" min="0" step="0.01" type="number" value="0.20"/></label>
-<p class="hint">High puede borrar detalles. La salida usa solo alfa 0 o 255.</p>
-</section>
-<p class="warning" id="qualityWarnings"></p><button id="saveProject">Guardar proyecto editable</button><button class="primary" id="apply">Aplicar · conservar resultado</button>
-<div class="row"><button id="back">Volver al tamaño</button><button id="cancel">Cancelar</button></div>
-<p class="hint">Volver o cancelar descarta la copia de trabajo, incluidas sus ediciones manuales; conserva el origen.</p>
-</div>
-<div class="hidden" id="resultStage"><section><h2>Resultado preparado</h2><p id="resultInfo"></p><button class="primary" id="export">Exportar PNG · 300 ppp</button><button id="newJob">Nueva preparación</button><button id="openBatchResult">Procesar lote con estos ajustes</button></section><button id="reopenLastProject">Reabrir último proyecto guardado</button></div>
-<div class="hidden" id="batchStage">
-<section><h2>Imágenes × tallas · exportación automática</h2>
-<button id="batchFiles">Seleccionar imágenes</button><p class="hint" id="batchFilesInfo">Sin archivos seleccionados. PNG, JPG, TIFF o PSD RGB/8 bits.</p>
-<button id="batchFolder">Elegir carpeta de destino</button><p class="hint" id="batchFolderInfo">Sin carpeta de destino.</p>
-<p class="hint">Se crea una carpeta nueva por ejecución, con subcarpetas por talla. El origen no se sobrescribe. Se procesa una imagen/versión a la vez.</p>
-<div class="row"><button id="addBatchFiles">Agregar archivos</button><button id="removeBatchFile">Quitar imagen elegida</button></div><label>Imagen para excepciones<select id="batchImageIndex"><option value="0">Sin imágenes</option></select></label><button id="toggleAssignment">Tallas y receta de esta imagen</button><div class="hidden" id="assignmentPanel"><label class="check"><input checked="" id="imageUseCommon" type="checkbox"/> Usar tallas y posición comunes</label><label>Prenda de esta imagen<select id="imageGarment"><option value="adult">Adulto unisex</option><option value="child">Infantil</option></select></label><div class="chips" id="imageSizes"></div><div class="chips" id="imagePositions"></div><label>Receta de esta imagen<select id="imageRecipe"><option value="">Ajustes comunes</option></select></label><label class="check"><input id="imageOwnColor" type="checkbox"/> Color distinto para esta imagen</label><label>HEX de esta imagen<input id="imageKey" value="#000000"/></label><button id="saveAssignment">Guardar excepción</button><p class="hint" id="assignmentInfo"></p></div></section>
-<section><h2>Tallas y áreas máximas · cm</h2>
-<label>Prenda común<select id="batchGarment"><option value="adult">Adulto unisex</option><option value="child">Infantil</option></select></label><label>Posición<select id="batchPlacement"><option value="front">Frontal completo</option><option value="back">Espalda completa</option><option value="chest">Pecho izquierdo</option><option value="sleeve">Manga</option><option value="neck">Nuca</option></select></label>
-<div class="size-row hint"><span>Talla</span><span>Ancho · cm</span><span>Alto · cm</span></div>
-<div class="size-row" id="batchRowXS"><label class="check"><input id="batchXS" type="checkbox"/> XS</label><input aria-label="Ancho máximo XS" id="batchWidthXS" max="100" min="0.1" step="0.1" type="number" value="22"/><input aria-label="Alto máximo XS" id="batchHeightXS" max="100" min="0.1" step="0.1" type="number" value="28"/></div>
-<div class="size-row" id="batchRowS"><label class="check"><input id="batchS" type="checkbox"/> S</label><input aria-label="Ancho máximo S" id="batchWidthS" max="100" min="0.1" step="0.1" type="number" value="24"/><input aria-label="Alto máximo S" id="batchHeightS" max="100" min="0.1" step="0.1" type="number" value="30"/></div>
-<div class="size-row" id="batchRowM"><label class="check"><input checked="" id="batchM" type="checkbox"/> M</label><input aria-label="Ancho máximo M" id="batchWidthM" max="100" min="0.1" step="0.1" type="number" value="27"/><input aria-label="Alto máximo M" id="batchHeightM" max="100" min="0.1" step="0.1" type="number" value="33"/></div>
-<div class="size-row" id="batchRowL"><label class="check"><input checked="" id="batchL" type="checkbox"/> L</label><input aria-label="Ancho máximo L" id="batchWidthL" max="100" min="0.1" step="0.1" type="number" value="29"/><input aria-label="Alto máximo L" id="batchHeightL" max="100" min="0.1" step="0.1" type="number" value="35"/></div>
-<div class="size-row" id="batchRowXL"><label class="check"><input id="batchXL" type="checkbox"/> XL</label><input aria-label="Ancho máximo XL" id="batchWidthXL" max="100" min="0.1" step="0.1" type="number" value="30"/><input aria-label="Alto máximo XL" id="batchHeightXL" max="100" min="0.1" step="0.1" type="number" value="35.5"/></div>
-<div class="size-row" id="batchRow2XL"><label class="check"><input id="batch2XL" type="checkbox"/> 2XL</label><input aria-label="Ancho máximo 2XL" id="batchWidth2XL" max="100" min="0.1" step="0.1" type="number" value="31"/><input aria-label="Alto máximo 2XL" id="batchHeight2XL" max="100" min="0.1" step="0.1" type="number" value="38"/></div>
-<div class="size-row" id="batchRow3XL"><label class="check"><input id="batch3XL" type="checkbox"/> 3XL</label><input aria-label="Ancho máximo 3XL" id="batchWidth3XL" max="100" min="0.1" step="0.1" type="number" value="31.5"/><input aria-label="Alto máximo 3XL" id="batchHeight3XL" max="100" min="0.1" step="0.1" type="number" value="40"/></div><div class="size-row hidden" id="batchRow2"><label class="check"><input id="batch2" type="checkbox"/> 2 infantil</label><input aria-label="Ancho 2 infantil" id="batchWidth2" max="100" min="0.1" type="number" value="16.0"/><input aria-label="Alto 2 infantil" id="batchHeight2" max="100" min="0.1" type="number" value="20"/></div><div class="size-row hidden" id="batchRow4"><label class="check"><input id="batch4" type="checkbox"/> 4 infantil</label><input aria-label="Ancho 4 infantil" id="batchWidth4" max="100" min="0.1" type="number" value="17.5"/><input aria-label="Alto 4 infantil" id="batchHeight4" max="100" min="0.1" type="number" value="22"/></div><div class="size-row hidden" id="batchRow6"><label class="check"><input id="batch6" type="checkbox"/> 6 infantil</label><input aria-label="Ancho 6 infantil" id="batchWidth6" max="100" min="0.1" type="number" value="19.0"/><input aria-label="Alto 6 infantil" id="batchHeight6" max="100" min="0.1" type="number" value="24"/></div><div class="size-row hidden" id="batchRow8"><label class="check"><input id="batch8" type="checkbox"/> 8 infantil</label><input aria-label="Ancho 8 infantil" id="batchWidth8" max="100" min="0.1" type="number" value="20.5"/><input aria-label="Alto 8 infantil" id="batchHeight8" max="100" min="0.1" type="number" value="26"/></div><div class="size-row hidden" id="batchRow10"><label class="check"><input id="batch10" type="checkbox"/> 10 infantil</label><input aria-label="Ancho 10 infantil" id="batchWidth10" max="100" min="0.1" type="number" value="22.0"/><input aria-label="Alto 10 infantil" id="batchHeight10" max="100" min="0.1" type="number" value="28"/></div><div class="size-row hidden" id="batchRow12"><label class="check"><input id="batch12" type="checkbox"/> 12 infantil</label><input aria-label="Ancho 12 infantil" id="batchWidth12" max="100" min="0.1" type="number" value="23.5"/><input aria-label="Alto 12 infantil" id="batchHeight12" max="100" min="0.1" type="number" value="30"/></div>
-<p class="hint">Elige cualquier cantidad de archivos y tallas. Cada variante se dimensiona desde el origen; no se escala una trama ya hecha.</p><p class="tag" id="batchCount">0 imágenes · 2 tallas · 0 resultados</p>
-<label class="check"><input id="batchBothSides" type="checkbox"/> Crear frontal y espalda en este lote</label><label class="check"><input id="convertCopy" type="checkbox"/> Convertir modos incompatibles en una copia RGB / 8 bits</label></section>
-<section><h2>Ajustes compartidos del lote</h2>
-<label class="check"><input checked="" id="knockoutBatch" type="checkbox"/> Eliminar color</label><label>HEX a eliminar<input id="keyBatch" maxlength="7" value="#000000"/></label>
-<div class="row"><label>Tolerancia %<input id="toleranceBatch" max="99" min="0" type="number" value="2"/></label><label>Transición %<input id="softnessBatch" max="100" min="0.1" type="number" value="35"/></label></div>
-<label>Forma<select id="shapeBatch"><option value="round">Redonda</option><option value="ellipse">Elipse 2:1</option><option value="square">Cuadrada</option><option value="diamond">Diamante</option><option value="line">Líneas</option></select></label>
-<div class="row"><label>Lineatura · LPI<input id="lpiBatch" max="75" min="5" type="number" value="35"/></label><label>Ángulo · °<input id="angleBatch" max="180" min="-180" type="number" value="45"/></label></div>
-<label>Limpieza<select id="cleanupBatch"><option value="none">None · sin limpieza</option><option value="low">Low</option><option selected="" value="standard">Standard</option><option value="high">High</option></select></label>
-<label>Protección<select id="batchProtection"><option value="off">Desactivada</option><option value="edges">Automática · bordes y trazos</option></select></label>
-<p class="hint" id="batchSettingsInfo"></p>
-<p class="hint">Ajustes comunes para todas las imágenes. Abre los controles avanzados o asigna una receta distinta a una imagen.</p>
-<button id="toggleBatchAdvanced">Niveles, color y detalle</button><div class="hidden" id="batchAdvanced"><label class="check"><input checked="" id="halftoneBatch" type="checkbox"/> Activar trama</label><label>Umbral sin trama<input id="alphaThresholdBatch" max="255" min="1" type="number" value="128"/></label><label>Negro<input id="inputBlackBatch" max="254" min="0" step="1" type="number" value="0"/></label><label>Medios tonos<input id="inputMidtoneBatch" max="9.99" min="0.1" step="0.01" type="number" value="1"/></label><label>Blanco<input id="inputWhiteBatch" max="255" min="1" step="1" type="number" value="255"/></label><label>Negro de salida<input id="outputBlackBatch" max="255" min="0" step="1" type="number" value="0"/></label><label>Blanco de salida<input id="outputWhiteBatch" max="255" min="0" step="1" type="number" value="255"/></label><label>Compensar sombras %<input id="shadowBoostBatch" max="100" min="0" step="1" type="number" value="0"/></label><label>Intensidad color %<input id="colorBoostBatch" max="100" min="0" step="1" type="number" value="0"/></label><label>Diámetro mínimo mm<input id="minDiameterMMBatch" max="2" min="0" step="0.01" type="number" value="0.2"/></label><label>Radio de borde px<input id="defringeRadiusBatch" max="4" min="1" step="1" type="number" value="2"/></label><label>Fuerza de borde %<input id="defringeStrengthBatch" max="100" min="0" step="1" type="number" value="100"/></label><label>Radio de protección px<input id="edgeRadiusBatch" max="4" min="1" step="1" type="number" value="1"/></label><label>Sensibilidad de borde<input id="edgeContrastBatch" max="255" min="16" step="1" type="number" value="96"/></label><label class="check"><input id="recoverBatch" type="checkbox"/> Recuperar mezcla con la prenda</label><label class="check"><input id="defringeBatch" type="checkbox"/> Tratar bordes</label></div></section>
-<button id="batchPreflight">Verificar archivos y variantes</button><p class="hint" id="batchPreflightInfo"></p><button id="batchResume">Reanudar un lote guardado</button><button class="primary" id="batchRun">Procesar y exportar todas las variantes</button><button disabled="" id="batchCancel">Detener lote</button><button id="batchBack">Volver</button>
-<p id="batchProgress" role="status">Elige archivos, destino y tallas.</p>
-<p class="hint">Puedes detenerlo entre bloques. Los PNG completados se conservan. reporte.csv y ajustes-y-resultados.json registran resultados, errores y cancelaciones.</p>
-</div>
-<button class="hidden" id="cancelPreparation">Detener preparación</button><p id="status" role="status">Abre tu diseño en Photoshop para empezar.</p>
-<footer>0.5.0 RC · Prueba de Photoshop e impresión pendiente</footer>
-</main><script src="main.js"></script></body></html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <link href="styles.css" rel="stylesheet">
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="brand">
+          <h1>HALFTONE DTF</h1>
+          <button id="toggleTools" class="menu-button" aria-label="Herramientas" aria-expanded="false">☰</button>
+        </div>
+        <div class="hidden">
+          <p id="stepLabel"></p>
+          <span id="stepPrepare"></span>
+          <span id="stepEdit"></span>
+          <span id="stepResult"></span>
+        </div>
+      </header>
+      <section id="toolsPanel" class="hidden">
+        <button id="toggleRecipes">Recetas y perfiles</button>
+        <button id="toggleHelp">Ayuda y diagnóstico</button>
+        <section id="sourceOptions" class="hidden">
+          <h2>Origen</h2>
+          <label>Procesar<select id="source">
+              <option value="layer">Capa seleccionada</option>
+              <option value="composite">Composición visible</option>
+            </select>
+          </label>
+          <button id="useCurrent">Usar documento actual</button>
+          <p class="hint" id="sourceInfo">Sin documento.</p>
+          <button class="quiet" id="convertCurrent">Crear copia RGB / 8 bits</button>
+          <label class="check">
+            <input id="trimArt" type="checkbox"> Medir solo el arte · recortar márgenes transparentes</label>
+          <label>Umbral de alfa · sin trama<input id="alphaThreshold" max="255" min="1" type="number" value="128">
+          </label>
+        </section>
+        <button id="toggleSource" type="button">Origen y recorte</button>
+        <button id="togglePerformance" type="button">Rendimiento</button>
+        <button id="openProject">Abrir proyecto editable</button>
+        <section id="performancePanel" class="hidden">
+          <h2>Rendimiento</h2>
+          <label>Memoria<select id="memoryMode">
+              <option value="auto">Automática · caché temporal para archivos grandes</option>
+              <option value="disk">Siempre usar caché en disco</option>
+            </select>
+          </label>
+          <label>Disco disponible para este trabajo · GB<input id="diskBudgetGB" max="100000" min="0" step="0.1" type="number" value="0">
+          </label>
+          <p class="hint" id="resourceInfo"></p>
+          <button id="cleanupCaches">Limpiar cachés abandonadas</button>
+        </section>
+      </section>
+      <section class="hidden" id="recipesPanel">
+        <h2>Recetas del taller</h2>
+        <label>Receta guardada<select id="recipeSelect">
+            <option value="">Elegir receta…</option>
+          </select>
+        </label>
+        <div class="row">
+          <button id="applyRecipe">Usar</button>
+          <button id="deleteRecipe">Eliminar</button>
+        </div>
+        <label>Nombre<input id="recipeName" maxlength="80" placeholder="Algodón negro · detalle fino">
+        </label>
+        <div class="row">
+          <label>Marca<input id="profileBrand">
+          </label>
+          <label>Modelo<input id="profileModel">
+          </label>
+        </div>
+        <div class="row">
+          <label>Equipo<input id="profileMachine" placeholder="Mimaki TXF300-75">
+          </label>
+          <label>RIP<input id="profileRIP" placeholder="RasterLink 7">
+          </label>
+        </div>
+        <label>Material<input id="profileMaterial" placeholder="Playera algodón · film y polvo">
+        </label>
+        <label class="check">
+          <input id="profileCalibrated" type="checkbox"> Probada físicamente en este equipo y material</label>
+        <button class="primary" id="saveRecipe">Guardar receta y áreas actuales</button>
+        <div class="row">
+          <button id="importRecipes">Importar</button>
+          <button id="exportRecipes">Exportar</button>
+        </div>
+        <p class="hint">Guarda ajustes, medidas y notas. Esta marca registra tu prueba; no certifica la impresión.</p>
+      </section>
+      <section class="hidden" id="helpPanel">
+        <h2>Guía rápida</h2>
+        <p>
+          <strong>1. Preparar:</strong> elige origen, medida final y color de prenda. Cada talla se dimensiona antes de generar puntos.</p>
+        <p>
+          <strong>2. Ajustar:</strong> revisa la vista, cambia trama y niveles. Los niveles controlan cobertura; sombras y color modifican RGB.</p>
+        <p>
+          <strong>3. Exportar:</strong> conserva el resultado y guarda PNG. Mantén tamaño y alfa binario en el RIP.</p>
+        <p>
+          <strong>LPI + limpieza:</strong> una trama fina tiene puntos pequeños. Si desaparecen degradados, baja LPI/diámetro o elige Sin limpieza. La vista Eliminado muestra partículas retiradas.</p>
+        <p>
+          <strong>Protección:</strong> la selección puede conservar el color del knockout. Captúrala en el original; la automática conserva bordes duros.</p>
+        <p>
+          <strong>Sin trama:</strong> usa un umbral de alfa. Los degradados se vuelven recortes sólidos.</p>
+        <p>
+          <strong>Proyecto:</strong> guarda el origen ya dimensionado y la selección antes de Aplicar. Reábrelo para cambiar ajustes sin acumular tramado; cambiar medida requiere preparar otra vez el original.</p>
+        <p>
+          <strong>Memoria:</strong> disco para imágenes grandes. El presupuesto disponible lo indicas tú; Photoshop necesita espacio adicional. Limpia cachés abandonadas después de una interrupción.</p>
+        <p>
+          <strong>Lotes:</strong> cantidad flexible y tallas elegibles. Puedes asignar excepciones por imagen. Detener guarda el avance; Reanudar verifica resultados existentes.</p>
+        <p>
+          <strong>Prenda:</strong> el mockup es una plantilla plana medida, no una simulación de tinta o textura. Confirma área y plancha.</p>
+        <p>
+          <strong>Color:</strong> salida sRGB/8 bits. Convertir copia conserva tu documento original. La compensación y el de-fringe requieren prueba de impresión.</p>
+        <button id="diagnosticExport">Exportar diagnóstico de sesión</button>
+        <button id="nativeSelfTest">Ejecutar comprobación en Photoshop</button>
+      </section>
+      <div id="prepareStage">
+        <section>
+          <h2>Tamaño final</h2>
+          <label>Medida<select id="sizeMode">
+              <option value="custom">A medida</option>
+              <option value="preset">Por talla y posición</option>
+            </select>
+          </label>
+          <div id="presetControls" class="hidden">
+            <label>Prenda<select id="garment">
+                <option value="adult">Adulto unisex</option>
+                <option value="child">Infantil</option>
+              </select>
+            </label>
+            <div class="row">
+              <label>Posición<select id="placement">
+                  <option value="front">Frontal completo</option>
+                  <option value="back">Espalda completa</option>
+                  <option value="chest">Pecho izquierdo</option>
+                  <option value="sleeve">Manga</option>
+                  <option value="neck">Nuca</option>
+                </select>
+              </label>
+              <label>Talla<select id="shirtSize">
+                  <option>XS</option>
+                  <option>S</option>
+                  <option selected="">M</option>
+                  <option>L</option>
+                  <option>XL</option>
+                  <option>2XL</option>
+                  <option>3XL</option>
+                </select>
+              </label>
+            </div>
+            <button id="applyPreset">Encajar en el área</button>
+            <p class="hint" id="presetInfo">Áreas orientativas ajustables. El arte encaja sin deformarse; confirma medidas en la prenda.</p>
+          </div>
+          <div class="row">
+            <label>Ancho<input id="widthCM" max="100" min="0.01" step="0.01" type="number">
+            </label>
+            <label>Alto<input id="heightCM" max="100" min="0.01" step="0.01" type="number">
+            </label>
+            <label class="unit-select">Unidad<select id="units">
+                <option value="cm">cm</option>
+                <option value="in">in</option>
+              </select>
+            </label>
+          </div>
+          <input id="sizeAxis" type="hidden" value="width">
+          <p class="hint" id="pixelInfo">Salida a 300 ppp.</p>
+          <p class="hidden" id="upscaleInfo"></p>
+          <p class="hidden">Se dimensiona el lienzo completo. Recorta márgenes vacíos para medir solo el arte.</p>
+        </section>
+        <section class="control-card" id="prepareTrama">
+          <h2>Trama</h2>
+          <label>Forma<select id="shape">
+              <option value="round">Redonda</option>
+              <option value="ellipse">Elipse 2:1</option>
+              <option value="square">Cuadrada</option>
+              <option value="diamond">Diamante</option>
+              <option value="line">Líneas</option>
+            </select>
+          </label>
+          <div class="row">
+            <label>Lineatura · LPI<input id="lpi" max="75" min="5" type="number" value="30">
+            </label>
+            <label>Ángulo · °<input id="angle" max="180" min="-180" type="number" value="33">
+            </label>
+          </div>
+          <label class="check">
+            <input checked="" id="halftone" type="checkbox"> Activar trama de semitonos</label>
+        </section>
+        <section>
+          <h2>Color a eliminar</h2>
+          <label class="check">
+            <input checked="" id="knockout" type="checkbox"> Eliminar color</label>
+          <div class="row">
+            <label>HEX<input id="key" maxlength="7" value="#000000">
+            </label>
+            <button id="foreground" class="swatch">Cuentagotas</button>
+          </div>
+          <div id="prepareColorAdvanced" class="hidden">
+            <div class="row">
+              <label>Tolerancia %<input id="tolerance" max="99" min="0" type="number" value="2">
+              </label>
+              <label>Transición %<input id="softness" max="100" min="0.1" step="0.1" type="number" value="35">
+              </label>
+            </div>
+          </div>
+          <button id="togglePrepareColor" type="button">Ajustar eliminación</button>
+        </section>
+        <button class="primary" id="next">Crear semitonos</button>
+        <button id="openBatch">Procesar lote</button>
+      </div>
+      <div id="editStage" class="hidden">
+        <section class="color-core">
+          <div class="row color-row">
+            <label class="check">
+              <input checked="" id="knockoutEdit" type="checkbox"> Eliminar color</label>
+            <button id="foregroundEdit" class="swatch" aria-label="Color a eliminar y cuentagotas">Color</button>
+          </div>
+          <div class="row color-row">
+            <span class="color-caption">Fondo de prenda</span>
+            <button id="pickBackground" type="button" class="swatch" aria-label="Color de la prenda">Color</button>
+          </div>
+          <label class="check">
+            <input checked="" id="linkBackground" type="checkbox">
+            <span>Vincular al color eliminado</span>
+          </label>
+        </section>
+        <div class="row">
+          <button id="resetLevels">Valores iniciales</button>
+          <button id="editScreen" type="button">Editar trama</button>
+        </div>
+        <section id="tramaControls" class="control-card hidden">
+          <label>Forma<select id="shapeEdit">
+              <option value="round">Redonda</option>
+              <option value="ellipse">Elipse 2:1</option>
+              <option value="square">Cuadrada</option>
+              <option value="diamond">Diamante</option>
+              <option value="line">Líneas</option>
+            </select>
+          </label>
+          <div class="row">
+            <label>Lineatura · LPI<input id="lpiEdit" type="number" min="5" max="75" value="30">
+            </label>
+            <label>Ángulo · °<input id="angleEdit" type="number" min="-180" max="180" value="33">
+            </label>
+          </div>
+          <label class="check">
+            <input id="halftoneEdit" type="checkbox" checked=""> Activar trama</label>
+        </section>
+        <section class="control-card" id="levelsControls">
+          <h2>Niveles · negro / medios / blanco</h2>
+          <div class="levels-row">
+            <div class="level">
+              <label>Negro<input id="inputBlack" max="254" min="0" step="1" type="number" value="7">
+              </label>
+              <sp-slider id="inputBlackSlider" max="254" min="0" show-value="false" value="7"></sp-slider>
+            </div>
+            <div class="level">
+              <label>Medios<input id="inputMidtone" max="9.99" min="0.1" step="0.01" type="number" value="2">
+              </label>
+              <sp-slider id="inputMidtoneSlider" max="9.99" min="0.1" show-value="false" step="0.01" value="2"></sp-slider>
+            </div>
+            <div class="level">
+              <label>Blanco<input id="inputWhite" max="255" min="1" step="1" type="number" value="100">
+              </label>
+              <sp-slider id="inputWhiteSlider" max="255" min="1" show-value="false" value="100"></sp-slider>
+            </div>
+          </div>
+          <h2>Niveles de salida</h2>
+          <div class="levels-row">
+            <div class="level">
+              <label>Negro<input id="outputBlack" max="255" min="0" step="1" type="number" value="0">
+              </label>
+              <sp-slider id="outputBlackSlider" max="255" min="0" show-value="false" value="0"></sp-slider>
+            </div>
+            <div class="level">
+              <label>Blanco<input id="outputWhite" max="255" min="0" step="1" type="number" value="255">
+              </label>
+              <sp-slider id="outputWhiteSlider" max="255" min="0" show-value="false" value="255"></sp-slider>
+            </div>
+          </div>
+          <p class="hidden">Blanco = mayor cobertura. Reducir el blanco de salida fuerza trama en zonas sólidas. Los colores originales se conservan.</p>
+        </section>
+        <div class="level">
+          <label>Compensar sombras · %<input id="shadowBoost" max="100" min="0" type="number" value="0">
+          </label>
+          <sp-slider id="shadowBoostSlider" max="100" min="0" show-value="false" value="0"></sp-slider>
+        </div>
+        <div class="view-buttons">
+          <button id="viewOriginal">Original</button>
+          <button id="viewGarment" class="active">Prenda</button>
+          <button id="viewTransparent">Alfa</button>
+          <button id="viewMask">Máscara</button>
+        </div>
+        <label class="check compare-toggle">
+          <input id="compareEnabled" type="checkbox"> Comparar antes / después</label>
+        <div class="level hidden" id="compareControls">
+          <label>Divisor antes / después · %<input id="comparePosition" max="100" min="0" type="number" value="50">
+          </label>
+          <sp-slider id="compareSlider" max="100" min="0" show-value="false" value="50"></sp-slider>
+        </div>
+        <section class="control-card" id="cleanupControls">
+          <h2>Limpieza de partículas</h2>
+          <label>Nivel<select id="cleanup">
+              <option value="none">Sin limpieza</option>
+              <option value="low">Baja</option>
+              <option selected="" value="standard">Normal</option>
+              <option value="high">Alta</option>
+            </select>
+          </label>
+          <p class="hidden">High puede borrar detalles. La salida usa solo alfa 0 o 255.</p>
+          <label class="check">
+            <input id="defringe" type="checkbox"> Tratar color contaminado en bordes</label>
+        </section>
+        <div class="row">
+          <button id="tabColor" class="quiet">Más color</button>
+          <button id="tabDetails" class="quiet">Detalles</button>
+          <button id="toggleInspector" type="button">Inspeccionar</button>
+        </div>
+        <div class="hidden">
+          <button class="quiet" id="tabTrama">Editar trama</button>
+        </div>
+        <section class="control-card hidden" id="colorControls">
+          <h2>Corregir color a eliminar</h2>
+          <label>HEX<input id="keyEdit" maxlength="7" value="#000000">
+          </label>
+          <div class="row">
+            <label>Tolerancia %<input id="toleranceEdit" max="99" min="0" type="number" value="2">
+            </label>
+            <label>Transición %<input id="softnessEdit" max="100" min="0.1" step="0.1" type="number" value="35">
+            </label>
+          </div>
+          <label class="check">
+            <input id="recover" type="checkbox"> Recuperar color mezclado con la prenda</label>
+          <p class="hint">También puedes tomar el color haciendo clic en la vista Original.</p>
+          <div class="level">
+            <label>Intensidad de color · %<input id="colorBoost" max="100" min="0" type="number" value="0">
+            </label>
+            <sp-slider id="colorBoostSlider" max="100" min="0" show-value="false" value="0"></sp-slider>
+          </div>
+          <div class="row">
+            <label>Radio · px<input id="defringeRadius" max="4" min="1" type="number" value="2">
+            </label>
+            <label>Fuerza · %<input id="defringeStrength" max="100" min="0" type="number" value="100">
+            </label>
+          </div>
+          <p class="hint">0 de compensación conserva RGB. El tratamiento busca color interior cerca de un borde; no actúa sobre toda la imagen.</p>
+          <label>Fondo de prenda<input id="previewColor" maxlength="7" value="#202020">
+          </label>
+        </section>
+        <section class="control-card hidden" id="protectionControls">
+          <h2>Protección de detalles</h2>
+          <label>Modo<select id="protection">
+              <option value="off">Desactivada</option>
+              <option value="edges">Automática · bordes duros y trazos finos</option>
+              <option value="selection">Selección capturada · conservar color sólido</option>
+            </select>
+          </label>
+          <button id="captureSelection">Capturar selección del original</button>
+          <p class="hint">Selecciona textos o logos en el documento original y captura la selección aquí. Las zonas seleccionadas con alfa ≥ 128 conservan su RGB, quedan opacas y se protegen de knockout, trama y limpieza. La protección automática conserva bordes; no recupera detalle inexistente.</p>
+          <label>Radio de protección · px<input id="edgeRadius" max="4" min="1" step="1" type="number" value="1">
+          </label>
+          <label>Sensibilidad de borde · contraste RGB<input id="edgeContrast" max="255" min="16" type="number" value="96">
+          </label>
+          <label>Diámetro equivalente mínimo · mm<input id="minDiameterMM" max="2" min="0" step="0.01" type="number" value="0.20">
+          </label>
+        </section>
+        <section class="hidden" id="inspectorPanel">
+          <h2>Revisa el resultado</h2>
+          <div class="hidden" id="mockupControls">
+            <div class="row">
+              <label>Ancho de pecho · cm<input id="mockupChestCM" max="100" min="15" type="number" value="52">
+              </label>
+              <label>Alto de prenda · cm<input id="mockupHeightCM" max="140" min="20" type="number" value="72">
+              </label>
+            </div>
+            <div class="row">
+              <label>Centro X · %<input id="mockupX" max="100" min="0" type="number" value="50">
+              </label>
+              <label>Inicio Y · %<input id="mockupY" max="100" min="0" type="number" value="18">
+              </label>
+            </div>
+            <p class="hint">Plantilla plana a escala. Ajusta con las medidas reales de la prenda; no representa textura ni tinta.</p>
+          </div>
+          <div class="row">
+            <label>Vista<select id="viewMode">
+                <option value="original">Original · sin tramado</option>
+                <option selected="" value="garment">Después · sobre la prenda</option>
+                <option value="beforeGarment">Antes · sobre la prenda</option>
+                <option value="compare">Comparar antes / después · sobre la prenda</option>
+                <option value="transparent">Trama · transparencia</option>
+                <option value="mask">Máscara · blanco y negro</option>
+                <option value="removed">Eliminado por limpieza</option>
+                <option value="protection">Detalle protegido</option>
+              </select>
+            </label>
+            <label>Encuadre<select id="previewScope">
+                <option value="detail">Detalle</option>
+                <option selected="" value="overview">Imagen completa</option>
+                <option value="mockup">Colocado en prenda</option>
+              </select>
+            </label>
+          </div>
+          <p class="tag" id="viewLabel"></p>
+          <div id="previewViewport">
+            <img alt="Detalle de la imagen procesada" id="previewImage">
+          </div>
+          <div class="row">
+            <label>Zoom visual<select id="previewZoom">
+                <option value="fit">Ajustar al panel</option>
+                <option value="100">100% · vista JPEG</option>
+                <option value="200">200% · vista JPEG</option>
+              </select>
+            </label>
+            <button class="quiet" id="togglePreviewExtras">Fondo y navegación</button>
+          </div>
+          <div class="hidden" id="previewExtras">
+            <div class="row">
+              <label>Centro X %<input id="focusX" max="100" min="0" type="number" value="50">
+              </label>
+              <label>Centro Y %<input id="focusY" max="100" min="0" type="number" value="50">
+              </label>
+            </div>
+            <p class="hint">Detalle hasta 512 × 512 píxeles finales. Durante el ajuste la limpieza del borde puede variar; al terminar se muestra el recorte del resultado completo. Inspecciona el lienzo al 100%.</p>
+            <div class="row">
+              <button id="panLeft">←</button>
+              <button id="panRight">→</button>
+              <button id="panUp">↑</button>
+              <button id="panDown">↓</button>
+            </div>
+          </div>
+        </section>
+        <p class="hidden" id="sessionInfo"></p>
+        <p class="warning" id="qualityWarnings"></p>
+        <p class="tag" id="liveState">Vista y lienzo sincronizados</p>
+        <div class="row">
+          <button id="cancel">Cancelar</button>
+          <button class="primary" id="apply">Aplicar</button>
+        </div>
+        <div class="row secondary-actions">
+          <button id="back">Cambiar tamaño</button>
+          <button id="saveProject">Guardar proyecto</button>
+        </div>
+      </div>
+      <div class="hidden" id="resultStage">
+        <section>
+          <h2>Resultado preparado</h2>
+          <p id="resultInfo"></p>
+          <button class="primary" id="export">Exportar PNG · 300 ppp</button>
+          <button id="newJob">Nueva preparación</button>
+          <button id="openBatchResult">Procesar lote con estos ajustes</button>
+        </section>
+        <button id="reopenLastProject">Reabrir último proyecto guardado</button>
+      </div>
+      <div class="hidden" id="batchStage">
+        <section>
+          <h2>Imágenes × tallas · exportación automática</h2>
+          <button id="batchFiles">Seleccionar imágenes</button>
+          <p class="hint" id="batchFilesInfo">Sin archivos seleccionados. PNG, JPG, TIFF o PSD RGB/8 bits.</p>
+          <button id="batchFolder">Elegir carpeta de destino</button>
+          <p class="hint" id="batchFolderInfo">Sin carpeta de destino.</p>
+          <p class="hint">Se crea una carpeta nueva por ejecución, con subcarpetas por talla. El origen no se sobrescribe. Se procesa una imagen/versión a la vez.</p>
+          <div class="row">
+            <button id="addBatchFiles">Agregar archivos</button>
+            <button id="removeBatchFile">Quitar imagen elegida</button>
+          </div>
+          <label>Imagen para excepciones<select id="batchImageIndex">
+              <option value="0">Sin imágenes</option>
+            </select>
+          </label>
+          <button id="toggleAssignment">Tallas y receta de esta imagen</button>
+          <div class="hidden" id="assignmentPanel">
+            <label class="check">
+              <input checked="" id="imageUseCommon" type="checkbox"> Usar tallas y posición comunes</label>
+            <label>Prenda de esta imagen<select id="imageGarment">
+                <option value="adult">Adulto unisex</option>
+                <option value="child">Infantil</option>
+              </select>
+            </label>
+            <div class="chips" id="imageSizes"></div>
+            <div class="chips" id="imagePositions"></div>
+            <label>Receta de esta imagen<select id="imageRecipe">
+                <option value="">Ajustes comunes</option>
+              </select>
+            </label>
+            <label class="check">
+              <input id="imageOwnColor" type="checkbox"> Color distinto para esta imagen</label>
+            <label>HEX de esta imagen<input id="imageKey" value="#000000">
+            </label>
+            <button id="saveAssignment">Guardar excepción</button>
+            <p class="hint" id="assignmentInfo"></p>
+          </div>
+        </section>
+        <section id="batchAreasPanel" class="compact-areas">
+          <h2>Tallas y áreas máximas · cm</h2>
+          <button id="toggleBatchAreas" type="button">Editar medidas por talla</button>
+          <label>Prenda común<select id="batchGarment">
+              <option value="adult">Adulto unisex</option>
+              <option value="child">Infantil</option>
+            </select>
+          </label>
+          <label>Posición<select id="batchPlacement">
+              <option value="front">Frontal completo</option>
+              <option value="back">Espalda completa</option>
+              <option value="chest">Pecho izquierdo</option>
+              <option value="sleeve">Manga</option>
+              <option value="neck">Nuca</option>
+            </select>
+          </label>
+          <div class="size-row hint">
+            <span>Talla</span>
+            <span>Ancho · cm</span>
+            <span>Alto · cm</span>
+          </div>
+          <div class="size-row" id="batchRowXS">
+            <label class="check">
+              <input id="batchXS" type="checkbox"> XS</label>
+            <input aria-label="Ancho máximo XS" id="batchWidthXS" max="100" min="0.1" step="0.1" type="number" value="22">
+            <input aria-label="Alto máximo XS" id="batchHeightXS" max="100" min="0.1" step="0.1" type="number" value="28">
+          </div>
+          <div class="size-row" id="batchRowS">
+            <label class="check">
+              <input id="batchS" type="checkbox"> S</label>
+            <input aria-label="Ancho máximo S" id="batchWidthS" max="100" min="0.1" step="0.1" type="number" value="24">
+            <input aria-label="Alto máximo S" id="batchHeightS" max="100" min="0.1" step="0.1" type="number" value="30">
+          </div>
+          <div class="size-row" id="batchRowM">
+            <label class="check">
+              <input checked="" id="batchM" type="checkbox"> M</label>
+            <input aria-label="Ancho máximo M" id="batchWidthM" max="100" min="0.1" step="0.1" type="number" value="27">
+            <input aria-label="Alto máximo M" id="batchHeightM" max="100" min="0.1" step="0.1" type="number" value="33">
+          </div>
+          <div class="size-row" id="batchRowL">
+            <label class="check">
+              <input checked="" id="batchL" type="checkbox"> L</label>
+            <input aria-label="Ancho máximo L" id="batchWidthL" max="100" min="0.1" step="0.1" type="number" value="29">
+            <input aria-label="Alto máximo L" id="batchHeightL" max="100" min="0.1" step="0.1" type="number" value="35">
+          </div>
+          <div class="size-row" id="batchRowXL">
+            <label class="check">
+              <input id="batchXL" type="checkbox"> XL</label>
+            <input aria-label="Ancho máximo XL" id="batchWidthXL" max="100" min="0.1" step="0.1" type="number" value="30">
+            <input aria-label="Alto máximo XL" id="batchHeightXL" max="100" min="0.1" step="0.1" type="number" value="35.5">
+          </div>
+          <div class="size-row" id="batchRow2XL">
+            <label class="check">
+              <input id="batch2XL" type="checkbox"> 2XL</label>
+            <input aria-label="Ancho máximo 2XL" id="batchWidth2XL" max="100" min="0.1" step="0.1" type="number" value="31">
+            <input aria-label="Alto máximo 2XL" id="batchHeight2XL" max="100" min="0.1" step="0.1" type="number" value="38">
+          </div>
+          <div class="size-row" id="batchRow3XL">
+            <label class="check">
+              <input id="batch3XL" type="checkbox"> 3XL</label>
+            <input aria-label="Ancho máximo 3XL" id="batchWidth3XL" max="100" min="0.1" step="0.1" type="number" value="31.5">
+            <input aria-label="Alto máximo 3XL" id="batchHeight3XL" max="100" min="0.1" step="0.1" type="number" value="40">
+          </div>
+          <div class="size-row hidden" id="batchRow2">
+            <label class="check">
+              <input id="batch2" type="checkbox"> 2 infantil</label>
+            <input aria-label="Ancho 2 infantil" id="batchWidth2" max="100" min="0.1" type="number" value="16.0">
+            <input aria-label="Alto 2 infantil" id="batchHeight2" max="100" min="0.1" type="number" value="20">
+          </div>
+          <div class="size-row hidden" id="batchRow4">
+            <label class="check">
+              <input id="batch4" type="checkbox"> 4 infantil</label>
+            <input aria-label="Ancho 4 infantil" id="batchWidth4" max="100" min="0.1" type="number" value="17.5">
+            <input aria-label="Alto 4 infantil" id="batchHeight4" max="100" min="0.1" type="number" value="22">
+          </div>
+          <div class="size-row hidden" id="batchRow6">
+            <label class="check">
+              <input id="batch6" type="checkbox"> 6 infantil</label>
+            <input aria-label="Ancho 6 infantil" id="batchWidth6" max="100" min="0.1" type="number" value="19.0">
+            <input aria-label="Alto 6 infantil" id="batchHeight6" max="100" min="0.1" type="number" value="24">
+          </div>
+          <div class="size-row hidden" id="batchRow8">
+            <label class="check">
+              <input id="batch8" type="checkbox"> 8 infantil</label>
+            <input aria-label="Ancho 8 infantil" id="batchWidth8" max="100" min="0.1" type="number" value="20.5">
+            <input aria-label="Alto 8 infantil" id="batchHeight8" max="100" min="0.1" type="number" value="26">
+          </div>
+          <div class="size-row hidden" id="batchRow10">
+            <label class="check">
+              <input id="batch10" type="checkbox"> 10 infantil</label>
+            <input aria-label="Ancho 10 infantil" id="batchWidth10" max="100" min="0.1" type="number" value="22.0">
+            <input aria-label="Alto 10 infantil" id="batchHeight10" max="100" min="0.1" type="number" value="28">
+          </div>
+          <div class="size-row hidden" id="batchRow12">
+            <label class="check">
+              <input id="batch12" type="checkbox"> 12 infantil</label>
+            <input aria-label="Ancho 12 infantil" id="batchWidth12" max="100" min="0.1" type="number" value="23.5">
+            <input aria-label="Alto 12 infantil" id="batchHeight12" max="100" min="0.1" type="number" value="30">
+          </div>
+          <p class="hint">Elige cualquier cantidad de archivos y tallas. Cada variante se dimensiona desde el origen; no se escala una trama ya hecha.</p>
+          <p class="tag" id="batchCount">0 imágenes · 2 tallas · 0 resultados</p>
+          <label class="check">
+            <input id="batchBothSides" type="checkbox"> Crear frontal y espalda en este lote</label>
+          <label class="check">
+            <input id="convertCopy" type="checkbox"> Convertir modos incompatibles en una copia RGB / 8 bits</label>
+        </section>
+        <button id="toggleBatchCommon" type="button">Ajustes compartidos</button>
+        <section id="batchCommonPanel" class="hidden">
+          <h2>Ajustes compartidos del lote</h2>
+          <label class="check">
+            <input checked="" id="knockoutBatch" type="checkbox"> Eliminar color</label>
+          <label>HEX a eliminar<input id="keyBatch" maxlength="7" value="#000000">
+          </label>
+          <div class="row">
+            <label>Tolerancia %<input id="toleranceBatch" max="99" min="0" type="number" value="2">
+            </label>
+            <label>Transición %<input id="softnessBatch" max="100" min="0.1" type="number" value="35">
+            </label>
+          </div>
+          <label>Forma<select id="shapeBatch">
+              <option value="round">Redonda</option>
+              <option value="ellipse">Elipse 2:1</option>
+              <option value="square">Cuadrada</option>
+              <option value="diamond">Diamante</option>
+              <option value="line">Líneas</option>
+            </select>
+          </label>
+          <div class="row">
+            <label>Lineatura · LPI<input id="lpiBatch" max="75" min="5" type="number" value="30">
+            </label>
+            <label>Ángulo · °<input id="angleBatch" max="180" min="-180" type="number" value="33">
+            </label>
+          </div>
+          <label>Limpieza<select id="cleanupBatch">
+              <option value="none">None · sin limpieza</option>
+              <option value="low">Low</option>
+              <option selected="" value="standard">Standard</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label>Protección<select id="batchProtection">
+              <option value="off">Desactivada</option>
+              <option value="edges">Automática · bordes y trazos</option>
+            </select>
+          </label>
+          <p class="hint" id="batchSettingsInfo"></p>
+          <p class="hint">Ajustes comunes para todas las imágenes. Abre los controles avanzados o asigna una receta distinta a una imagen.</p>
+          <button id="toggleBatchAdvanced">Niveles, color y detalle</button>
+          <div class="hidden" id="batchAdvanced">
+            <label class="check">
+              <input checked="" id="halftoneBatch" type="checkbox"> Activar trama</label>
+            <label>Umbral sin trama<input id="alphaThresholdBatch" max="255" min="1" type="number" value="128">
+            </label>
+            <label>Negro<input id="inputBlackBatch" max="254" min="0" step="1" type="number" value="7">
+            </label>
+            <label>Medios tonos<input id="inputMidtoneBatch" max="9.99" min="0.1" step="0.01" type="number" value="2">
+            </label>
+            <label>Blanco<input id="inputWhiteBatch" max="255" min="1" step="1" type="number" value="100">
+            </label>
+            <label>Negro de salida<input id="outputBlackBatch" max="255" min="0" step="1" type="number" value="0">
+            </label>
+            <label>Blanco de salida<input id="outputWhiteBatch" max="255" min="0" step="1" type="number" value="255">
+            </label>
+            <label>Compensar sombras %<input id="shadowBoostBatch" max="100" min="0" step="1" type="number" value="0">
+            </label>
+            <label>Intensidad color %<input id="colorBoostBatch" max="100" min="0" step="1" type="number" value="0">
+            </label>
+            <label>Diámetro mínimo mm<input id="minDiameterMMBatch" max="2" min="0" step="0.01" type="number" value="0.2">
+            </label>
+            <label>Radio de borde px<input id="defringeRadiusBatch" max="4" min="1" step="1" type="number" value="2">
+            </label>
+            <label>Fuerza de borde %<input id="defringeStrengthBatch" max="100" min="0" step="1" type="number" value="100">
+            </label>
+            <label>Radio de protección px<input id="edgeRadiusBatch" max="4" min="1" step="1" type="number" value="1">
+            </label>
+            <label>Sensibilidad de borde<input id="edgeContrastBatch" max="255" min="16" step="1" type="number" value="96">
+            </label>
+            <label class="check">
+              <input id="recoverBatch" type="checkbox"> Recuperar mezcla con la prenda</label>
+            <label class="check">
+              <input id="defringeBatch" type="checkbox"> Tratar bordes</label>
+          </div>
+        </section>
+        <button id="batchPreflight">Verificar archivos y variantes</button>
+        <p class="hint" id="batchPreflightInfo"></p>
+        <button id="batchResume">Reanudar un lote guardado</button>
+        <button class="primary" id="batchRun">Procesar y exportar todas las variantes</button>
+        <button disabled="" id="batchCancel">Detener lote</button>
+        <button id="batchBack">Volver</button>
+        <p id="batchProgress" role="status">Elige archivos, destino y tallas.</p>
+        <p class="hint">Puedes detenerlo entre bloques. Los PNG completados se conservan. reporte.csv y ajustes-y-resultados.json registran resultados, errores y cancelaciones.</p>
+      </div>
+      <button class="hidden" id="cancelPreparation">Detener preparación</button>
+      <p id="status" role="status">Abre tu diseño en Photoshop para empezar.</p>
+      <footer>0.6.0 RC</footer>
+    </main>
+    <script src="main.js"></script>
+  </body>
+</html>

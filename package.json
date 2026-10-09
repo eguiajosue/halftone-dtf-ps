@@ -1,6 +1,6 @@
 {
   "name": "halftone-dtf-ps",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "description": "Panel UXP de semitonos con transparencia para Photoshop y DTF",
   "scripts": {

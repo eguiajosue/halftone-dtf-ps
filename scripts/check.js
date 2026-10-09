@@ -4,7 +4,7 @@ const cp = require('node:child_process');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..'), plugin = path.join(root, 'plugin');
 const m = JSON.parse(fs.readFileSync(path.join(plugin,'manifest.json')));
-if(m.manifestVersion!==5 || m.host[0].data.apiVersion!==2) throw Error('Invalid manifest');
+if(m.manifestVersion!==5 || Array.isArray(m.host) || m.host.app!=='PS' || m.host.data.apiVersion!==2) throw Error('Invalid distribution manifest');
 for(const file of fs.readdirSync(plugin).filter(name=>name.endsWith('.js'))) cp.execFileSync(process.execPath,['--check',path.join(plugin,file)]);
 const html=fs.readFileSync(path.join(plugin,'index.html'),'utf8'), js=fs.readFileSync(path.join(plugin,'main.js'),'utf8');
 for(const match of js.matchAll(/\$\('([^']+)'\)/g)) if(!html.includes(`id="${match[1]}"`)) throw Error('Missing control '+match[1]);

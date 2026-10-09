@@ -8,7 +8,7 @@ const batch=require('./batch');
 const {runBatch}=batch;
 const recipesAPI=require('./recipes'),projects=require('./project'),diagnostics=require('./diagnostics');
 const $=id=>document.getElementById(id);
-const levels={inputBlack:0,inputMidtone:1,inputWhite:255,outputBlack:0,outputWhite:255};
+const levels={inputBlack:7,inputMidtone:2,inputWhite:100,outputBlack:0,outputWhite:255};
 const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
 const checks=['knockout','recover','linkBackground','halftone','defringe','trimArt','convertCopy'];
 const settingIDs=['source','key',...checks,...numeric,'shape','cleanup','viewMode','previewColor','sizeAxis','placement','shirtSize','memoryMode','protection','units','garment','previewScope'];
@@ -30,7 +30,9 @@ function settings() {
 }
 function status(message){$('status').textContent=message;}
 function save(){try{localStorage.setItem('halftone-dtf-settings-v5',JSON.stringify(settings()));}catch(_) {}}
-function syncColor(){for(const id of colorIDs){if(id==='knockout')$(id+'Edit').checked=$(id).checked;else $(id+'Edit').value=$(id).value;}}
+function syncColor(){for(const id of colorIDs){if(id==='knockout')$(id+'Edit').checked=$(id).checked;else $(id+'Edit').value=$(id).value;}syncSwatches();}
+function syncSwatches(){try{hexRGB($('key').value);$('foreground').style.borderLeftColor=$('key').value;$('foregroundEdit').style.borderLeftColor=$('key').value;const bg=$('linkBackground').checked?$('key').value:$('previewColor').value;hexRGB(bg);$('pickBackground').style.borderLeftColor=bg;}catch(_){} }
+function syncScreen(){for(const id of ['lpi','angle','shape'])$(id+'Edit').value=$(id).value;$('halftoneEdit').checked=$('halftone').checked;}
 function syncSliders(){for(const id of [...Object.keys(levels),'shadowBoost','colorBoost'])$(id+'Slider').value=Number($(id).value);}
 function ensureEditDefaults(){
   if(!['original','garment','beforeGarment','compare','transparent','mask','removed','protection'].includes($('viewMode').value))$('viewMode').value='garment';
@@ -41,7 +43,7 @@ function ensureEditDefaults(){
   }catch(_){
     // Invalid hidden editing fields must never trap the user in stage 1 after
     // Cancel or a restart. Stage-1 color errors remain visible and editable.
-    for(const [id,value]of Object.entries(Object.assign({},levels,{shape:'round',lpi:35,angle:45,cleanup:'standard',minDiameterMM:.20,focusX:50,focusY:50,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1})))$(id).value=value;
+    for(const [id,value]of Object.entries(Object.assign({},levels,{shape:'round',lpi:30,angle:33,cleanup:'standard',minDiameterMM:.20,focusX:50,focusY:50,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1})))$(id).value=value;
     $('recover').checked=false;$('defringe').checked=false;$('halftone').checked=true;$('protection').value='off';syncSliders();
   }
 }
@@ -53,7 +55,7 @@ function load(){
   }catch(_){status('Preferencias reiniciadas.');}
   displayUnit=$('units').value;
   if(displayUnit==='in'){canonicalSize={widthCM:Number($('widthCM').value),heightCM:Number($('heightCM').value)};$('widthCM').value=(canonicalSize.widthCM/2.54).toFixed(6);$('heightCM').value=(canonicalSize.heightCM/2.54).toFixed(6);}
-  syncColor();syncSliders();$('compareSlider').value=Number($('comparePosition').value);
+  syncColor();syncSliders();syncScreen();$('compareSlider').value=Number($('comparePosition').value);
 }
 function controls(){
   for(const el of Array.from(document.querySelectorAll('input,select,button,sp-slider')))el.disabled=busy;
@@ -66,6 +68,8 @@ function controls(){
   $('minDiameterMM').disabled=busy||$('cleanup').value==='none';
   $('saveProject').disabled=busy||!session;$('reopenLastProject').disabled=busy||!lastProject;
   $('captureSelection').disabled=busy||!session||session.sourceID==null;
+  for(const id of ['lpiEdit','angleEdit','shapeEdit'])$(id).disabled=busy||!$('halftone').checked;
+  $('widthCM').disabled=busy||$('sizeMode').value==='preset';$('heightCM').disabled=busy||$('sizeMode').value==='preset';
 }
 function showStage(next){
   stage=next;for(const [name,id]of [['prepare','stepPrepare'],['edit','stepEdit'],['result','stepResult']])$(id).className=next===name?'current':'';
@@ -104,21 +108,25 @@ async function paint(cached,ctx){
   if(ctx)ctx.check();previewCache=cached;
   const revision=++paintRevision,o=settings();
   const guard=()=>{if(ctx)ctx.check();if(revision!==paintRevision||stage!=='edit'){const e=Error('Vista reemplazada.');e.superseded=true;throw e;}};hexRGB(o.key);if(!o.linkBackground)hexRGB(o.previewColor);
-  let display=cached;
-  if(cached.exact&&o.previewScope!=='detail'&&!['removed','protection'].includes(o.viewMode)&&host.overview){display=await host.overview(session,guard);}
-  const image=await host.renderPreview({...display,mockup:o.previewScope==='mockup'&&['original','beforeGarment','garment','compare'].includes(o.viewMode)},o.viewMode,o);
+  const inspecting=$('inspectorPanel').className!=='hidden';let display=cached,image;
+  if(inspecting){
+    if(cached.exact&&o.previewScope!=='detail'&&!['removed','protection'].includes(o.viewMode)&&host.overview){display=await host.overview(session,guard);}
+    image=await host.renderPreview({...display,mockup:o.previewScope==='mockup'&&['original','beforeGarment','garment','compare'].includes(o.viewMode)},o.viewMode,o);
+  }
+  if(cached.exact&&host.workspaceView){try{await host.workspaceView(session,o.viewMode,o,guard);}catch(e){if(e.superseded)return;throw e;}}
   if(revision!==paintRevision||stage!=='edit'||(ctx&&!ctx.current()))return;
-  $('previewImage').src=image;previewPixels=o.previewScope==='mockup'&&['original','beforeGarment','garment','compare'].includes(o.viewMode)?420:display.src.width;
+  if(image)$('previewImage').src=image;previewPixels=o.previewScope==='mockup'&&['original','beforeGarment','garment','compare'].includes(o.viewMode)?420:display.src.width;
   $('previewImage').style.width=$('previewZoom').value==='fit'?'100%':(previewPixels*Number($('previewZoom').value)/100)+'px';
   $('compareControls').className=o.viewMode==='compare'?'level':'level hidden';
   $('mockupControls').className=o.previewScope==='mockup'?'':'hidden';
   $('qualityWarnings').textContent=diagnostics.warnings(o,cached.stats).join(' ');
   $('viewLabel').textContent=viewLabel(o.viewMode);
+  syncViews();
   if(cached.exact)status('Resultado completo actualizado. '+summary(cached));
   else status('Detalle actualizado; calculando el lienzo completo…');
 }
 function queue(){
-  save();if(!live||!session||stage!=='edit'||busy)return;
+  save();controls();if(!live||!session||stage!=='edit'||busy)return;
   paintRevision++;live.request(settings());$('liveState').textContent='Actualizando automáticamente…';
 }
 function createLive(){
@@ -133,9 +141,14 @@ async function discard(){
   const cacheWarning=session&&session.cacheWarning;session=null;previewCache=null;$('previewImage').src='';
   showStage('prepare');status('La copia de trabajo se descartó. Puedes cambiar tamaño y color.'+(cacheWarning?' '+cacheWarning:''));
 }
-function foreground(){
-  try{$('key').value='#'+require('photoshop').app.foregroundColor.rgb.hexValue;syncColor();queue();}
-  catch(e){status(e.message);}
+async function foreground(){
+  await action(async()=>{
+    if(live)await live.flush();
+    const mode=$('viewMode').value;
+    if(session&&host.workspaceView)await host.workspaceView(session,'original',settings());
+    try{const key=await require('./color-picker').pickColor($('key').value);if(key){$('key').value=key;syncColor();save();}}
+    finally{if(session){if(live){live.request(settings());await live.flush();}else if(host.workspaceView)await host.workspaceView(session,mode,settings());}}
+  });
 }
 function batchSizes(){return ($('garment').value==='child'?sizing.CHILD_SIZES:sizing.SIZES).filter(size=>$('batch'+size).checked);}
 function batchAreas(){const areas={};for(const size of batchSizes())areas[size]=[Number($('batchWidth'+size).value),Number($('batchHeight'+size).value)];return areas;}
@@ -170,7 +183,7 @@ function init(){
   for(const id of colorIDs){
     const event=id==='knockout'?'change':'input';
     $(id).addEventListener(event,()=>{syncColor();save();});
-    $(id+'Edit').addEventListener(event,()=>{if(id==='knockout')$(id).checked=$(id+'Edit').checked;else $(id).value=$(id+'Edit').value;queue();});
+    $(id+'Edit').addEventListener(event,()=>{if(id==='knockout')$(id).checked=$(id+'Edit').checked;else $(id).value=$(id+'Edit').value;syncSwatches();queue();});
   }
   $('foreground').addEventListener('click',foreground);$('foregroundEdit').addEventListener('click',foreground);
   for(const id of Object.keys(levels)){
@@ -219,6 +232,7 @@ function init(){
     // introduce translucent pixels or leave a closed document accepted.
     live.request(settings());await live.flush();
     if(!session.stats.inkPixels)throw Error('El resultado quedó vacío. Reduce tolerancia o limpieza y revisa el color.');
+    if(host.clearWorkspace)await host.clearWorkspace(session);
     const result=session;approvedResult={width:result.size.width,height:result.size.height};await live.dispose();live=null;outputID=result.documentID;
     $('resultInfo').textContent=summary(result);await host.releaseSession(result);session=null;previewCache=null;paintRevision++;
     showStage('result');status('Resultado conservado en Photoshop. Puedes exportarlo a PNG.'+(result.cacheWarning?' '+result.cacheWarning:''));
@@ -244,7 +258,7 @@ function init(){
   });
   $('batchCancel').addEventListener('click',()=>{if(batchToken){batchToken.cancelled=true;controls();$('batchProgress').textContent='Deteniendo; se conservarán los PNG completados…';}});
   $('batchRun').addEventListener('click',()=>action(()=>executeBatch()));
-  initExtras();
+  initExtras();initCompact();
   try{adoptSource();}catch(_){status('Abre tu diseño y pulsa Usar documento actual.');}controls();
 }
 entrypoints.setup({panels:{halftoneDTF:{show(){}}}});
@@ -258,7 +272,7 @@ function setFields(o){
  for(const id of settingIDs)if(o[id]!=null){if(checks.includes(id))$(id).checked=o[id];else $(id).value=o[id];}
  displayUnit=$('units').value;
  if(o.widthCM!=null&&o.heightCM!=null){canonicalSize={widthCM:o.widthCM,heightCM:o.heightCM};$('widthCM').value=fromCM(o.widthCM).toFixed(6);$('heightCM').value=fromCM(o.heightCM).toFixed(6);}
- syncGarmentOptions(o.shirtSize);syncColor();syncSliders();
+ syncGarmentOptions(o.shirtSize);syncColor();syncSliders();syncScreen();
 }
 function rememberAreas(){
  const place=$('batchPlacement').value;profileAreas[place]=profileAreas[place]||{};
@@ -321,9 +335,8 @@ function initExtras(){
  $('toggleRecipes').addEventListener('click',()=>toggle('recipesPanel'));$('toggleHelp').addEventListener('click',()=>toggle('helpPanel'));
  $('togglePreviewExtras').addEventListener('click',()=>toggle('previewExtras'));
  $('toggleBatchAdvanced').addEventListener('click',()=>toggle('batchAdvanced'));$('toggleAssignment').addEventListener('click',()=>{toggle('assignmentPanel');showAssignment();});
- for(const [id,groups]of [['tabTrama',['tramaControls','levelsControls']],['tabColor',['colorControls']],['tabDetails',['protectionControls','cleanupControls']]])$(id).addEventListener('click',()=>{
-  for(const name of ['tramaControls','levelsControls','colorControls','protectionControls','cleanupControls'])$(name).className=groups.includes(name)?'control-card':'control-card hidden';
-  for(const tab of ['tabTrama','tabColor','tabDetails'])$(tab).className=tab===id?'active':'';
+ for(const [id,panel]of [['tabTrama','tramaControls'],['tabColor','colorControls'],['tabDetails','protectionControls']])$(id).addEventListener('click',()=>{
+  $(panel).className=$(panel).className.includes('hidden')?'control-card':'control-card hidden';
  });
  for(const key of ['shadowBoost','colorBoost'])$(key+'Slider').addEventListener('input',()=>{$(key).value=Number($(key+'Slider').value);queue();});
  $('units').addEventListener('change',()=>{
@@ -376,7 +389,7 @@ function initExtras(){
  $('openProject').addEventListener('click',()=>action(async()=>loadProjectAction(await storage.localFileSystem.getFolder())));
  $('reopenLastProject').addEventListener('click',()=>action(()=>loadProjectAction(lastProject)));
  $('nativeSelfTest').addEventListener('click',()=>action(async()=>{if(session)throw Error('Aplica o descarta la sesión antes de comprobar Photoshop.');const parent=await storage.localFileSystem.getFolder();if(!parent)return;initialToken={cancelled:false};controls();try{const r=await require('./native-validation').run(parent,checkInitial,status);status('Comprobación Photoshop: '+r.report.status+' · '+r.folder.name+(r.report.error?' · '+r.report.error:''));}finally{initialToken=null;controls();}}));
- $('diagnosticExport').addEventListener('click',()=>action(async()=>{const file=await storage.localFileSystem.getFileForSaving('diagnostico-halftone.json',{types:['json']});if(file)await file.write(JSON.stringify({plugin:'0.5.0',date:new Date().toISOString(),settings:recipesAPI.options(settings()),stage,stats:session?.stats||null,metrics:session?.metrics||null,photoshop:require('photoshop').app.version||'no disponible'},null,2));status('Diagnóstico exportado sin píxeles ni rutas del origen.');}));
+ $('diagnosticExport').addEventListener('click',()=>action(async()=>{const file=await storage.localFileSystem.getFileForSaving('diagnostico-halftone.json',{types:['json']});if(file)await file.write(JSON.stringify({plugin:'0.6.0',date:new Date().toISOString(),settings:recipesAPI.options(settings()),stage,stats:session?.stats||null,metrics:session?.metrics||null,photoshop:require('photoshop').app.version||'no disponible'},null,2));status('Diagnóstico exportado sin píxeles ni rutas del origen.');}));
  $('batchImageIndex').addEventListener('change',showAssignment);
  $('batchBothSides').addEventListener('change',batchInfo);
  if(typeof document.createElement==='function'){
@@ -411,4 +424,43 @@ function initExtras(){
 function syncGarmentOptions(preferred){const child=$('garment').value==='child',sizes=child?sizing.CHILD_SIZES:sizing.SIZES;
  $('shirtSize').innerHTML=sizes.map(size=>'<option>'+size+'</option>').join('');$('shirtSize').value=sizes.includes(preferred)?preferred:child?'4':'M';
  if(child&&!sizing.CHILD_SIZES.some(size=>$('batch'+size).checked)){$('batch4').checked=true;$('batch6').checked=true;}
+}
+
+function syncViews(){
+ syncSwatches();
+ const mode=$('viewMode').value;
+ for(const [id,value]of [['viewOriginal','original'],['viewGarment','garment'],['viewTransparent','transparent'],['viewMask','mask']]){
+  const active=mode===value||(value==='garment'&&['compare','beforeGarment'].includes(mode));$(id).className=active?'active':'';
+  if($(id).setAttribute)$(id).setAttribute('aria-pressed',String(active));
+ }
+ $('compareEnabled').checked=mode==='compare';
+}
+function initCompact(){
+ const repaint=()=>{syncViews();save();if(previewCache)paint(previewCache).catch(e=>{if(!e.superseded)status(e.message);});};
+ for(const [button,panel]of [['toggleTools','toolsPanel'],['toggleSource','sourceOptions'],['togglePerformance','performancePanel'],['togglePrepareColor','prepareColorAdvanced'],['toggleBatchCommon','batchCommonPanel']])$(button).addEventListener('click',()=>{
+  toggle(panel);if($(button).setAttribute)$(button).setAttribute('aria-expanded',String($(panel).className!=='hidden'));
+ });
+ $('editScreen').addEventListener('click',()=>{syncScreen();$('tramaControls').className=$('tramaControls').className.includes('hidden')?'control-card':'control-card hidden';});
+ for(const id of ['lpi','angle','shape','halftone']){
+  $(id+'Edit').addEventListener(['shape','halftone'].includes(id)?'change':'input',()=>{if(id==='halftone')$(id).checked=$(id+'Edit').checked;else $(id).value=$(id+'Edit').value;controls();queue();});
+  $(id).addEventListener(['shape','halftone'].includes(id)?'change':'input',syncScreen);
+ }
+ $('sizeMode').addEventListener('change',()=>{$('presetControls').className=$('sizeMode').value==='preset'?'':'hidden';controls();if($('sizeMode').value==='preset')applySizePreset();});
+ for(const id of ['placement','shirtSize','garment'])$(id).addEventListener('change',()=>{if($('sizeMode').value==='preset')applySizePreset();});
+ for(const [id,mode]of [['viewOriginal','original'],['viewGarment','garment'],['viewTransparent','transparent'],['viewMask','mask']])$(id).addEventListener('click',()=>{$('viewMode').value=mode;repaint();});
+ $('compareEnabled').addEventListener('change',()=>{$('viewMode').value=$('compareEnabled').checked?'compare':'garment';repaint();});
+ $('toggleInspector').addEventListener('click',()=>{toggle('inspectorPanel');repaint();});
+ $('pickBackground').addEventListener('click',()=>action(async()=>{
+  if(live)await live.flush();const color=await require('./color-picker').pickColor($('linkBackground').checked?$('key').value:$('previewColor').value,'Color de la prenda');
+  if(color){$('previewColor').value=color;$('linkBackground').checked=false;if(previewCache)await paint(previewCache);}
+ }));
+ $('toggleBatchAreas').addEventListener('click',()=>{$('batchAreasPanel').className=$('batchAreasPanel').className==='compact-areas'?'':'compact-areas';});
+ syncViews();syncScreen();
+}
+function applySizePreset(){
+ if(busy||!sourceInfo)return;
+ try{const area=sizing.garmentArea($('placement').value,$('shirtSize').value,$('garment').value,profileAreas[$('placement').value]?.[$('shirtSize').value]);
+  const scale=Math.min(area[0]/sourceInfo.width,area[1]/sourceInfo.height);$('widthCM').value=fromCM(sourceInfo.width*scale).toFixed(6);syncSize('width',sourceInfo.width*scale);
+  $('presetInfo').textContent='Área máxima: '+area.join(' × ')+' cm · encaje proporcional';save();
+ }catch(e){status(e.message);}
 }

@@ -1,5 +1,7 @@
 # Propuesta UX/UI — Halftone DTF para Photoshop
 
+> Documento de propuesta histórica. Las nuevas referencias del usuario sustituyen el editor con miniatura por un panel compacto y vistas en el lienzo. El alcance implementado y pendiente está en [REDISENO-0.6.0.md](REDISENO-0.6.0.md).
+
 Fecha: 9 de octubre de 2026. Base: código 0.5.0 RC de `plugin/index.html`, `plugin/styles.css` y `plugin/main.js`. Estado: análisis y propuesta, pendiente de implementación y validación dentro de Photoshop.
 
 ## Diagnóstico
@@ -14,7 +16,7 @@ Como referencia reproducible, el HTML contiene 22 controles visibles por defecto
 | --- | --- | --- | --- |
 | P0 | Preparar muestra origen, medidas, presets, knockout, memoria, disco, cachés y proyectos. | Cuesta reconocer qué hay que hacer primero. | Preparar contiene tamaño y color; utilidades van al menú del taller. |
 | P0 | Medidas personalizadas y presets están abiertos simultáneamente, con otro botón para aplicar la talla. | No resulta claro qué tamaño está activo. | Dos modos: A medida / Por talla. Seleccionar una talla calcula el encaje inmediatamente. |
-| P0 | El documento abierto requiere pulsar Usar documento actual. | Un paso de activación poco evidente bloquea el avance. | Detectar y presentar el origen, con opción visible de cambiarlo; fijarlo al empezar. |
+| P1 | El botón Usar documento actual compite con el inicio, aunque 0.5.0 ya detecta el documento en `init()`. | La acción de cambiar origen parece obligatoria. | Conservar detección automática y mover la actualización explícita a Origen. |
 | P0 | Las vistas principales se mezclan con diagnósticos en un selector de ocho opciones. | Es difícil comparar el resultado visualmente. | Cuatro botones persistentes: Original, Prenda, Transparente y Máscara. Comparación como control de la vista Prenda. |
 | P0 | Cinco niveles aparecen como bloques verticales con encabezados y explicaciones extensas. | La vista queda lejos de los controles que modifican el resultado. | Grupo Niveles compacto, con tres entradas y dos salidas, números precisos y sliders vinculados. |
 | P0 | Volver y Cancelar descartan la copia de trabajo; Aplicar cierra la sesión antes de exportar. | Se puede perder una edición o quedarse sin una vuelta sencilla a los ajustes. | Definir explícitamente cuándo se descarta, cuándo se conserva y cuándo se exporta. Mantener la sesión editable hasta terminar la salida. |
