@@ -5,7 +5,9 @@ const host=require('./host'),{processRGBA}=require('./engine'),{checksum}=requir
 const PROFILE='sRGB IEC61966-2.1';
 async function read(docID,layerID,w,h){
  let obj;try{
-  obj=await imaging.getPixels({documentID:docID,layerID,sourceBounds:{left:0,top:0,right:w,bottom:h},colorSpace:'RGB',colorProfile:PROFILE,componentSize:8,applyAlpha:false});
+  const request={documentID:docID,sourceBounds:{left:0,top:0,right:w,bottom:h},colorSpace:'RGB',colorProfile:PROFILE,componentSize:8,applyAlpha:false};
+  if(layerID!=null){if(!Number.isSafeInteger(layerID))throw Error('Identificador de capa inválido en validación.');request.layerID=layerID;}
+  obj=await imaging.getPixels(request);
   if(obj.level!==0)throw Error('Lectura nativa con escala inesperada.');
   const im=obj.imageData,raw=await im.getData({chunky:true}),out=new Uint8Array(w*h*4),bounds=obj.sourceBounds;
   for(let y=0;y<im.height;y++)for(let x=0;x<im.width;x++){
@@ -16,7 +18,7 @@ async function read(docID,layerID,w,h){
  }finally{if(obj?.imageData)obj.imageData.dispose();}
 }
 async function run(parent,check=()=>{},progress=()=>{}){
- const folder=await parent.createFolder('DTF-Prueba-Photoshop-'+Date.now()),report={schema:'halftone-native-validation',version:1,plugin:'0.5.0',photoshop:app.version,date:new Date().toISOString(),status:'running',checks:[]};
+ const folder=await parent.createFolder('DTF-Prueba-Photoshop-'+Date.now()),report={schema:'halftone-native-validation',version:1,plugin:require('./manifest.json').version,photoshop:app.version,date:new Date().toISOString(),status:'running',checks:[]};
  let sourceID;const sessions=[];const w=640,h=160,data=new Uint8Array(w*h*4),options={knockout:false,cleanup:'none',lpi:35,angle:33,focusX:50,focusY:50};
  for(let y=0;y<h;y++)for(let x=0;x<w;x++){const a=y<8||y>=h-8?0:Math.round(x/(w-1)*255);data.set([200,70,30,a],(y*w+x)*4);}
  try{

@@ -1,5 +1,9 @@
 # Historial
 
+## 0.6.2 RC — 2026-10-09
+
+Corrige el error nativo `Incorrect type for key: layerID. Expected: number` al leer composición/exportar: omite el campo opcional cuando no hay capa y valida los IDs explícitos. El host simulado ahora rechaza claves presentes con valores no numéricos; dos regresiones cubren composición, exportación y lectura por capa.
+
 ## 0.6.1 RC — 2026-10-09
 
 Consulta de releases estables desde el menú; intervalo de ocho horas, desactivación, comprobación manual, timeout y fallos de red sin bloquear el trabajo. Identidad, versión, canal, procedencia y archivos del release validados. Permisos de red limitados y apertura HTTPS con consentimiento de UXP.
