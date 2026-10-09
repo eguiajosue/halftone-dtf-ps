@@ -232,3 +232,31 @@ test('a failed workspace presentation rolls back its layer and keeps the last vi
  await assert.rejects(f.host.workspaceView(s,'mask',o,()=>{if(++calls>3)throw Error('replaced view');}),/replaced view/);
  assert.equal(s.workspaceLayerID,id);assert.deepEqual(f.result.layers.map(l=>l.id),before);assert.equal(s.closed,false);await f.host.cancelSession(s);assert.deepEqual(f.app.documents.map(d=>d.id),[7]);
 });
+
+test('workspace-only updates skip provisional processing and pause, reuse output and keep no full-result cache',async()=>{
+ for(const memoryMode of ['ram','disk']){
+  const f=fixture(),o={memoryMode,knockout:false,cleanup:'none',focusX:50,focusY:50,detailPreview:false};
+  const s=await f.host.beginSession('layer',o),reads=f.calls.filter(c=>c[0]==='get').length;
+  let pauses=0,previews=0,output;
+  await f.host.updateSession(s,{...o,outputWhite:160},{check:()=>{},current:()=>true,pause:async()=>{pauses++;}},async p=>{
+   previews++;assert.equal(p.exact,true);assert.ok(p.workspaceResultStore);
+   output=(await p.workspaceResultStore.read({left:0,top:0,width:s.size.width,height:s.size.height})).data;
+   if(s.sourceStore)s.sourceStore.read=async()=>{throw Error('Unused source read');};
+   await f.host.workspaceView(s,'mask',o,()=>{},p.workspaceResultStore);
+  });
+  assert.equal(pauses,0);assert.equal(previews,1);assert.equal(f.calls.filter(c=>c[0]==='get').length,reads);
+  assert.equal(s.preview.workspaceResultStore,undefined);
+  assert.ok(s.metrics.updateMs>=s.metrics.processingAndWriteMs);assert.ok(s.metrics.presentationMs>=0);
+  const overlay=f.result.layers.find(l=>l.id===s.workspaceLayerID).data;
+  for(let p=0;p<output.length/4;p++)assert.deepEqual([...overlay.subarray(p*4,p*4+4)],[output[p*4+3]?255:0,output[p*4+3]?255:0,output[p*4+3]?255:0,255]);
+  await f.host.cancelSession(s);
+ }
+});
+test('original workspace view never reads printable output; fast updates still cancel before committing',async()=>{
+ const f=fixture(),o={knockout:false,cleanup:'none',focusX:50,focusY:50},s=await f.host.beginSession('layer',o);
+ const reads=f.calls.filter(c=>c[0]==='get').length;
+ await f.host.workspaceView(s,'original',o);assert.equal(f.calls.filter(c=>c[0]==='get').length,reads);
+ const layerID=s.layerID;let checks=0;
+ await assert.rejects(f.host.updateSession(s,{...o,detailPreview:false},{check:()=>{if(++checks>6)throw Error('superseded');},pause:async()=>{throw Error('Unneeded pause');}},()=>{}),/superseded/);
+ assert.equal(s.layerID,layerID);await f.host.cancelSession(s);
+});

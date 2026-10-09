@@ -1,0 +1,37 @@
+{
+  "node": "v24.19.0",
+  "width": 2048,
+  "height": 2048,
+  "runs": 5,
+  "metric": "median CPU milliseconds; no native Photoshop I/O",
+  "rows": [
+    {
+      "scenario": "solid",
+      "beforeMs": 314.20030299999996,
+      "afterMs": 230.28635699999995,
+      "speedup": 1.3643895673767596,
+      "identical": true
+    },
+    {
+      "scenario": "knockout",
+      "beforeMs": 409.60311700000057,
+      "afterMs": 275.31721300000027,
+      "speedup": 1.4877497579492067,
+      "identical": true
+    },
+    {
+      "scenario": "gradient",
+      "beforeMs": 485.329307,
+      "afterMs": 375.4019509999998,
+      "speedup": 1.292825745063856,
+      "identical": true
+    },
+    {
+      "scenario": "checkerboard",
+      "beforeMs": 57.73731999999836,
+      "afterMs": 46.98536499999864,
+      "speedup": 1.2288362557149453,
+      "identical": true
+    }
+  ]
+}

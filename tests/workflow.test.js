@@ -134,3 +134,21 @@ test('four view buttons use the Photoshop workspace without retriggering screeni
  await e.viewTransparent.emit('click');await new Promise(r=>setTimeout(r,0));assert.equal(e.viewMode.value,'transparent');assert.equal(calls.filter(c=>c[0]==='update').length,0);
  await e.apply.emit('click');assert.ok(calls.findIndex(c=>c[0]==='clearWorkspace')<calls.findIndex(c=>c[0]==='release'));
 });
+
+test('cleanup segments preserve calibrated thresholds, version and stage remain current',async()=>{
+ const {elements:e,calls}=fixture();assert.equal(e.footerVersion.textContent,require('../plugin/manifest.json').version+' RC');
+ await e.next.emit('click');assert.equal(e.stageBadge.textContent,'Ajustar');
+ assert.equal(e.outputControls.className,'hidden');await e.toggleOutput.emit('click');assert.equal(e.outputControls.className,'');
+ e.outputWhite.value=180;await e.outputWhite.emit('input');await e.toggleOutput.emit('click');assert.equal(e.outputWhite.value,180);
+ await e.cleanupHigh.emit('click');assert.equal(e.cleanup.value,'high');assert.equal(e.minDiameterMM.value,require('../plugin/engine').LEVELS.high.minDiameterMM);
+ assert.equal(e.cleanupHigh.className,'active');assert.equal(e.cleanupStandard.className,'');
+ await e.apply.emit('click');assert.equal(calls.find(c=>c[0]==='update')[1].detailPreview,false);assert.equal(e.stageBadge.textContent,'Exportar');
+});
+test('divider drags coalesce into one workspace render without running the engine',async()=>{
+ const {elements:e,calls,host}=fixture();host.workspaceView=async(s,mode,o)=>calls.push(['workspace',mode,o.comparePosition]);
+ await e.next.emit('click');e.compareEnabled.checked=true;await e.compareEnabled.emit('change');calls.length=0;
+ for(const position of [12,33,66,89]){e.compareSlider.value=position;await e.compareSlider.emit('input');}
+ await new Promise(r=>setTimeout(r,120));
+ assert.deepEqual(calls.filter(c=>c[0]==='workspace'),[['workspace','compare',89]]);
+ assert.equal(calls.filter(c=>c[0]==='update').length,0);await e.cancel.emit('click');
+});

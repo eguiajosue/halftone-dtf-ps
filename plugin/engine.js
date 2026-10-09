@@ -102,12 +102,12 @@ function threshold(u, v, shape) {
 function coverage(r, g, b, a, n) {
   let opacity = a / 255, matte = 1;
   if (n.knockout) {
-    const rgb = [r, g, b];
     const distance = Math.hypot(r - n.rgb[0], g - n.rgb[1], b - n.rgb[2]) / (255 * Math.sqrt(3));
     const t = clamp((distance - n.tolerance / 100) / (n.softness / 100));
     opacity *= t * t * (3 - 2 * t);
     if (n.recover) {
       // Minimal gamut-feasible alpha solving C = a*F + (1-a)*garment.
+      const rgb = [r, g, b];
       matte = 0;
       for (let k = 0; k < 3; k++) {
         const d = rgb[k] - n.rgb[k];
@@ -175,13 +175,17 @@ async function processRGBA(input, width, height, options = {}, hook) {
       }
       const inRegion=x>=region.left&&x<region.left+region.width&&y>=region.top&&y<region.top+region.height;
       if(protectedPixel) {
-        output.set(input.subarray(i,i+3),i);output[i+3]=255;removedMask[y*width+x]=1;protectedMask[y*width+x]=255;inkPixels++;
+        output[i]=input[i];output[i+1]=input[i+1];output[i+2]=input[i+2];output[i+3]=255;removedMask[y*width+x]=1;protectedMask[y*width+x]=255;inkPixels++;
         if(inRegion){regionScreenPixels++;regionProtectedPixels++;}continue;
       }
       if (c.value < LEVELS[n.cleanup].alphaFloor || c.value <= 0) continue;
-      const gx = x + n.originX + 0.5, gy = y + n.originY + 0.5;
-      const t = threshold((gx * cos + gy * sin) / cell, (-gx * sin + gy * cos) / cell, n.shape);
-      if(n.halftone ? (c.value<1&&c.value<=t) : c.value*255<n.alphaThreshold)continue;
+      if(n.halftone) {
+        // Solid coverage does not need a screen threshold; preserve exact tones.
+        if(c.value<1) {
+          const gx=x+n.originX+0.5,gy=y+n.originY+0.5;
+          if(c.value<=threshold((gx*cos+gy*sin)/cell,(-gx*sin+gy*cos)/cell,n.shape))continue;
+        }
+      } else if(c.value*255<n.alphaThreshold)continue;
       const edge=n.defringe?cleanedEdge(input,width,height,x,y,c,n):null;
       for (let k = 0; k < 3; k++) output[i + k] = n.recover && n.knockout && c.matte > 0
         ? Math.round(clamp((input[i + k] - (1 - c.matte) * n.rgb[k]) / c.matte, 0, 255)) : edge?edge[k]:input[i+k];
@@ -204,10 +208,9 @@ async function processRGBA(input, width, height, options = {}, hook) {
 function composite(rgba, width, height, background) {
   const out = new Uint8Array(width * height * 3);
   for (let p = 0; p < width * height; p++) {
-    const x = p % width, y = Math.floor(p / width);
-    const bg = background || (Math.floor(x / 12) % 2 === Math.floor(y / 12) % 2 ? [190, 190, 190] : [230, 230, 230]);
-    const a = rgba[p * 4 + 3] / 255;
-    for (let k = 0; k < 3; k++) out[p * 3 + k] = Math.round(rgba[p * 4 + k] * a + bg[k] * (1 - a));
+    const checker=background?0:(Math.floor((p%width)/12)%2===Math.floor(Math.floor(p/width)/12)%2?190:230);
+    const a=rgba[p*4+3]/255;
+    for(let k=0;k<3;k++)out[p*3+k]=Math.round(rgba[p*4+k]*a+(background?background[k]:checker)*(1-a));
   }
   return out;
 }

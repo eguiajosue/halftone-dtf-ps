@@ -1,5 +1,13 @@
 # Historial
 
+## 0.6.3 RC — 2026-10-09
+
+Rediseño del panel: botones y campos coherentes, indicadores de etapa, sliders de ancho completo, limpieza segmentada y vistas Original / Prenda / Trama / Máscara. Salida y sombras plegables; presets, cuentagotas, protección y lotes conservados. Versión del pie sincronizada con el manifest.
+
+Ajustes sin inspector cerrado pasan directamente al resultado completo: evitan un cálculo de detalle y la pausa fija de 250 ms. La presentación reutiliza temporalmente el resultado RAM/disco, omite lecturas de origen/salida innecesarias y agrupa arrastres del divisor antes/después. No mantiene una segunda imagen completa en la caché del panel. Menos asignaciones por píxel y cálculo de umbral únicamente donde hace falta; calidad y 300 ppp conservados.
+
+125 pruebas JavaScript y 4 Python aprobadas localmente; Windows verificado por CI. Comparación CPU de 4,19 MP con cinco repeticiones: 19–33 % menos tiempo según escenario, resultados idénticos. No mide I/O nativo de Photoshop. Evidencia y límites en `docs/UX-RENDIMIENTO-0.6.3.md`.
+
 ## 0.6.2 RC — 2026-10-09
 
 Corrige el error nativo `Incorrect type for key: layerID. Expected: number` al leer composición/exportar: omite el campo opcional cuando no hay capa y valida los IDs explícitos. El host simulado ahora rechaza claves presentes con valores no numéricos; dos regresiones cubren composición, exportación y lectura por capa.

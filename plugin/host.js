@@ -298,14 +298,20 @@ async function updateSession(session,options,ctx,onPreview=()=>{}) {
   const n=validate(Object.assign({},options,{dpi:300,originX:0,originY:0}));
   const crop=cropAtFocus(session.size,{x:options.focusX,y:options.focusY});
   const hook=async()=>{ctx.check();await new Promise(r=>setTimeout(r,0));ctx.check();};
-  const detail=await detailCrop(session,crop,n,hook),src=detail.src;
-  ctx.check();await onPreview({...detail,size:session.size,stats:detail.result.stats,exact:false},ctx);
-  await ctx.pause(250);ctx.check();
+  let detail=null;
+  if(options.detailPreview!==false){
+    detail=await detailCrop(session,crop,n,hook);
+    ctx.check();await onPreview({...detail,size:session.size,stats:detail.result.stats,exact:false},ctx);
+    await ctx.pause(250);ctx.check();
+  }
+  const src=detail?detail.src:cropBuffer(session.source,session.size.width,crop);
   const result=await processRGBA(session.source,session.size.width,session.size.height,Object.assign({},n,{protectMask:session.protectStore?session.protectStore.data:null}),hook);
   ctx.check();await writeSession(session,result,n,ctx.check);ctx.check();
-  session.stats=result.stats;session.overview=null;session.metrics={...session.metrics,updateMs:Date.now()-started};
-  const cached={src,result:{...cropBuffer(result.data,session.size.width,crop),removedMask:tileEngine.cut(result.removedMask,session.size.width,crop,1),protectedMask:result.protectedMask?tileEngine.cut(result.protectedMask,session.size.width,crop,1):null},protectMask:detail.protectMask,size:session.size,stats:result.stats,exact:true};
-  session.preview=cached;await onPreview(cached,ctx);ctx.check();
+  session.stats=result.stats;session.overview=null;session.metrics={...session.metrics,processingAndWriteMs:Date.now()-started};
+  const cached={src,result:{...cropBuffer(result.data,session.size.width,crop),removedMask:tileEngine.cut(result.removedMask,session.size.width,crop,1),protectedMask:result.protectedMask?tileEngine.cut(result.protectedMask,session.size.width,crop,1):null},protectMask:detail?detail.protectMask:(session.protectStore?tileEngine.cut(session.protectStore.data,session.size.width,crop,1):null),size:session.size,stats:result.stats,exact:true};
+  session.preview=cached;const presenting=Date.now();
+  await onPreview({...cached,workspaceResultStore:new tileEngine.MemoryStore(session.size.width,session.size.height,4,result.data)},ctx);ctx.check();
+  session.metrics={...session.metrics,presentationMs:Date.now()-presenting,updateMs:Date.now()-started};
 }
 async function cancelSession(session) {
   if(session.closed)return;
@@ -426,14 +432,18 @@ async function writeTiledSession(session,store,options,check){
 async function updateTiledSession(session,options,ctx,onPreview){
   const started=Date.now();
   ctx.check();await assertLayerState(session);sessionDocument(session);const n=validate(Object.assign({},options,{dpi:300}));
-  const crop=cropAtFocus(session.size,{x:options.focusX,y:options.focusY}),detail=await detailCrop(session,crop,n,hookFor(ctx.check));
-  ctx.check();await onPreview({...detail,size:session.size,stats:detail.result.stats,exact:false},ctx);await ctx.pause(250);ctx.check();
+  const crop=cropAtFocus(session.size,{x:options.focusX,y:options.focusY});
+  if(options.detailPreview!==false){
+    const detail=await detailCrop(session,crop,n,hookFor(ctx.check));
+    ctx.check();await onPreview({...detail,size:session.size,stats:detail.result.stats,exact:false},ctx);await ctx.pause(250);ctx.check();
+  }
   const store=await tileEngine.createDiskStore(session.size.width,session.size.height);
   try{
     const stats=await tileEngine.processTiles(session.sourceStore,store,n,hookFor(ctx.check),session.protectStore);ctx.check();
     const cached=await tiledPreview(session,store,stats,options);ctx.check();
-    await writeTiledSession(session,store,n,ctx.check);ctx.check();session.stats=stats;session.overview=null;session.metrics={...session.metrics,updateMs:Date.now()-started};session.preview=cached;
-    await onPreview(cached,ctx);ctx.check();
+    await writeTiledSession(session,store,n,ctx.check);ctx.check();session.stats=stats;session.overview=null;session.metrics={...session.metrics,processingAndWriteMs:Date.now()-started};session.preview=cached;
+    const presenting=Date.now();await onPreview({...cached,workspaceResultStore:store},ctx);ctx.check();
+    session.metrics={...session.metrics,presentationMs:Date.now()-presenting,updateMs:Date.now()-started};
   }finally{await discardStore(store,session);}
 }
 async function openBatchSource(file,options={}){

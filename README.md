@@ -1,8 +1,10 @@
-# Halftone DTF — Photoshop UXP · 0.6.2 RC
+# Halftone DTF — Photoshop UXP · 0.6.3 RC
 
 Panel en español para preparar arte de color con huecos transparentes para DTF. Flujo **Preparar → Ajustar → Exportar**, tamaño proporcional y salida fija a 300 ppp. Destino inicial: Windows / Photoshop 25.0 o superior. Procesamiento local sin dependencias de ejecución. La consulta opcional de versiones usa GitHub y no envía imágenes.
 
 **Candidato de versión.** Las pruebas automáticas usan el motor real y un host Photoshop simulado. Photoshop no está disponible en este entorno: instalación, interfaz UXP, archivos nativos y transferencia física siguen pendientes. El CCX local requiere comprobación y empaquetado oficial antes de distribución estable.
+
+**0.6.3:** controles rediseñados, sliders de ancho completo y limpieza por botones. Los niveles de salida y sombras se abren desde **Salida y sombras**. El inspector cerrado evita procesamiento de detalle; las vistas reutilizan temporalmente el resultado calculado. [Análisis UX y rendimiento](docs/UX-RENDIMIENTO-0.6.3.md).
 
 ## Instalación y actualizaciones
 
