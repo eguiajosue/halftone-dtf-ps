@@ -15,8 +15,16 @@ jobs:
           python-version: '3.12'
       - run: npm test
       - run: npm run check
+      - run: npm run distribution:test
       - run: npm run package
       - uses: actions/upload-artifact@v4
         with:
           name: Halftone-DTF-candidate
           path: dist/
+  windows-updater:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Parse and exercise updater without installing or scheduling
+        shell: powershell
+        run: ./tests/windows-updater.tests.ps1

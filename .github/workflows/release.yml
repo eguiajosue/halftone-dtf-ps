@@ -1,0 +1,52 @@
+name: Prepare official release
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  windows-updater:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify companion before publishing
+        shell: powershell
+        run: ./tests/windows-updater.tests.ps1
+  release:
+    needs: windows-updater
+    # Run on a version tag. A source change alone never installs on user computers.
+    if: startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, '-')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm test
+      - run: npm run check
+      - run: npm run distribution:test
+      - name: Validate tag and human-packaged Adobe CCX
+        run: |
+          node -e 'const m=require("./plugin/manifest.json"); if(process.env.GITHUB_REF_NAME!=="v"+m.version)throw Error("Tag and manifest differ");'
+          VERSION=$(node -p 'require("./plugin/manifest.json").version')
+          python3 scripts/prepare-distribution.py --official-ccx "installer/official/Halftone-DTF-${VERSION}.ccx"
+      - name: Create reviewable draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p 'require("./plugin/manifest.json").version')
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo 'Release already exists; refusing to replace published assets.'
+            exit 1
+          fi
+          cd installer/windows
+          zip -j ../../dist/Halftone-DTF-Updater-Windows.zip HalftoneDTF-Updater.ps1 Instalar-y-activar.cmd Desactivar-actualizaciones.cmd Ver-estado.cmd
+          cd ../..
+          gh release create "$TAG" "installer/official/Halftone-DTF-${VERSION}.ccx" dist/halftone-update.json dist/Halftone-DTF-Updater-Windows.zip --verify-tag --draft --title "Halftone DTF ${VERSION}" --notes-file docs/RELEASE-NOTES.md

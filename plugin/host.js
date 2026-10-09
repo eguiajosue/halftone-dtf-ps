@@ -7,6 +7,7 @@ const tileEngine=require('./tiles');
 const diagnostics=require('./diagnostics');
 const approvedSizes=new Map();
 const PROFILE='sRGB IEC61966-2.1';
+const workspace=require('./workspace').createWorkspace({app,core,imaging,readRGBA,profile:PROFILE});
 const MAX_TILE_SOURCE_PIXELS=16000000;
 function printPlan(doc,options){const f=options.frame||{left:0,top:0,width:doc.width,height:doc.height};return {...sizing.plan(f.width,f.height,doc.resolution,options),frame:f};}
 function cancelError(message){const error=Error(message);error.cancelled=true;return error;}
@@ -205,7 +206,7 @@ function sessionDocument(session) {
   const layer=Array.from(doc.layers).find(l=>l.id===session.layerID);
   if(!layer)throw Error('La capa de trabajo fue eliminada. Vuelve a la preparación.');
   if(layer.visible===false||(layer.opacity!=null&&layer.opacity!==100)||(layer.blendMode!=null&&constants.BlendMode&&layer.blendMode!==constants.BlendMode.NORMAL))throw Error('La capa de trabajo fue modificada. Restablece visibilidad, opacidad 100% y mezcla Normal.');
-  if(Array.from(doc.layers).length!==1)throw Error('El documento de trabajo tiene capas adicionales. Vuelve a preparar el original.');
+  if(Array.from(doc.layers).some(l=>l.id!==session.layerID&&l.id!==session.workspaceLayerID))throw Error('El documento de trabajo tiene capas adicionales. Vuelve a preparar el original.');
   return {doc,layer};
 }
 function cropBuffer(data,width,crop) {
@@ -284,6 +285,7 @@ async function beginSession(source,options,onProgress=()=>{}) {
 }
 async function updateSession(session,options,ctx,onPreview=()=>{}) {
   const started=Date.now();
+  await workspace.wait(session);ctx.check();
   if(session.sourceStore)return updateTiledSession(session,options,ctx,onPreview);
   ctx.check();await assertLayerState(session);sessionDocument(session);
   const n=validate(Object.assign({},options,{dpi:300,originX:0,originY:0}));
@@ -300,6 +302,7 @@ async function updateSession(session,options,ctx,onPreview=()=>{}) {
 }
 async function cancelSession(session) {
   if(session.closed)return;
+  session.workspaceRevision=(session.workspaceRevision||0)+1;await workspace.wait(session);
   await core.executeAsModal(async()=>{
     const doc=Array.from(app.documents).find(d=>d.id===session.documentID);
     if(doc)doc.closeWithoutSaving();approvedSizes.delete(session.documentID);
@@ -307,6 +310,7 @@ async function cancelSession(session) {
   await releaseSession(session);
 }
 async function releaseSession(session) {
+  await workspace.clear(session);
   session.closed=true;session.source=null;session.preview=null;
   for(const id of ['sourceStore','protectStore'])if(session[id]){await discardStore(session[id],session);session[id]=null;}
 }
@@ -328,6 +332,7 @@ async function readSelectionRGBA(doc,bounds) {
   }finally{if(obj&&obj.imageData)obj.imageData.dispose();}
 }
 async function captureProtection(session,check=()=>{}) {
+  await workspace.wait(session);check();
   let store;
   try {
     await core.executeAsModal(async context=>{
@@ -440,7 +445,7 @@ async function closeBatchSource(source){
   if(!source.owned)return;
   await core.executeAsModal(async()=>{const doc=Array.from(app.documents).find(d=>d.id===source.documentID);if(doc)doc.closeWithoutSaving();},{commandName:'Cerrar origen del lote'});
 }
-module.exports={info,convertCurrent,validateBatchOutput,overview,beginFromSnapshot,trimSourceBounds,preview,renderPreview,apply,exportPNG,beginSession,updateSession,cancelSession,releaseSession,captureProtection,openBatchSource,closeBatchSource};
+module.exports={workspaceView:workspace.show,clearWorkspace:workspace.clear,info,convertCurrent,validateBatchOutput,overview,beginFromSnapshot,trimSourceBounds,preview,renderPreview,apply,exportPNG,beginSession,updateSession,cancelSession,releaseSession,captureProtection,openBatchSource,closeBatchSource};
 
 async function convertCurrent(){
  return core.executeAsModal(async context=>{
@@ -455,7 +460,7 @@ async function validateBatchOutput(file,size,check=()=>{}){
  check();const source=await openBatchSource(file);try{return await exportPNG(source.documentID,null,check,size);}finally{await closeBatchSource(source);}
 }
 async function overview(session,check=()=>{}){
- check();if(session.overview)return session.overview;const {thumbnail}=require('./overview');
+ await workspace.wait(session);check();if(session.overview)return session.overview;const {thumbnail}=require('./overview');
  const store=session.sourceStore||new tileEngine.MemoryStore(session.size.width,session.size.height,4,session.source);
  const src=await thumbnail(store,360,check),{doc,layer}=sessionDocument(session);
  const output={width:doc.width,height:doc.height,read:crop=>readRGBA(doc,layer.id,{left:crop.left,top:crop.top,right:crop.left+crop.width,bottom:crop.top+crop.height})};

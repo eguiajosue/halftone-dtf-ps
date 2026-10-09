@@ -1,13 +1,15 @@
 {
   "name": "halftone-dtf-ps",
-  "version": "0.5.0",
+  "version": "0.6.1",
   "private": true,
   "description": "Panel UXP de semitonos con transparencia para Photoshop y DTF",
   "scripts": {
     "test": "node --test tests/*.test.js",
     "check": "node scripts/check.js",
     "package": "python3 scripts/package.py",
-    "release:check": "node scripts/check-release.js"
+    "release:check": "node scripts/check-release.js",
+    "distribution:prepare": "python3 scripts/prepare-distribution.py",
+    "distribution:test": "python3 -m unittest discover -s tests -p 'distribution_test.py'"
   },
   "engines": {
     "node": ">=18"

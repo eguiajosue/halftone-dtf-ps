@@ -1,0 +1,45 @@
+name: Publish downloadable candidate
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: publish-candidate
+  cancel-in-progress: false
+jobs:
+  windows-updater:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - shell: powershell
+        run: ./tests/windows-updater.tests.ps1
+  publish:
+    needs: windows-updater
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm test
+      - run: npm run check
+      - run: npm run distribution:test
+      - run: npm run package
+      - name: Publish candidate assets without declaring Adobe validation
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p 'require("./plugin/manifest.json").version')
+          TAG="v${VERSION}-rc.1"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo 'Candidate already published. Increment the version before another delivery.'
+            exit 0
+          fi
+          gh release create "$TAG" "dist/Halftone-DTF-${VERSION}.ccx" "dist/Halftone-DTF-${VERSION}-proyecto.zip" dist/Halftone-DTF-Updater-Windows.zip dist/SHA256SUMS.txt --target "$GITHUB_SHA" --prerelease --title "Halftone DTF ${VERSION} RC" --notes-file docs/RELEASE-CANDIDATE.md

@@ -8,7 +8,7 @@ function fixture({empty=false,cancel=false,semiExport=false}={}) {
   const original={id:7,name:'Art.psd',width:80,height:90,resolution:300,mode:'rgb',bitsPerChannel:8,pixelAspectRatio:1,activeLayers:[{id:11}]};
   const result={id:20,layers:[{id:21}],width:80,height:90,resolution:300,mode:'rgb',bitsPerChannel:8,saveAs:{png:async(...a)=>calls.push(['png',...a])}};
   const app={documents:[original],activeDocument:original,createDocument:async o=>{calls.push(['create',o]);Object.assign(result,{width:o.width,height:o.height,resolution:o.resolution});app.documents.push(result);return result;}};
-  let nextLayer=22;result.createPixelLayer=async()=>{const layer={id:nextLayer++,visible:true,delete:()=>{result.layers=result.layers.filter(l=>l.id!==layer.id);}};result.layers.push(layer);return layer;};
+  let nextLayer=22;result.createPixelLayer=async()=>{const layer={id:nextLayer++,visible:true,bringToFront:()=>{result.layers=[layer,...result.layers.filter(l=>l.id!==layer.id)];},delete:()=>{result.layers=result.layers.filter(l=>l.id!==layer.id);}};result.layers.push(layer);return layer;};
   result.layers[0].delete=()=>{result.layers=result.layers.filter(l=>l.id!==21);};
   result.closeWithoutSaving=()=>{calls.push(['close',20]);app.documents=app.documents.filter(d=>d.id!==20);};
   const imaging={getPixels:async o=>{
@@ -197,4 +197,22 @@ test('extreme area reduction streams a single output pixel from more than 16 MP 
  f.imaging.getPixels=async o=>{const b=o.sourceBounds,w=b.right-b.left,h=b.bottom-b.top;f.calls.push(['get',o]);assert.ok(w*h<=512*512);const data=new Uint8Array(w*h*4).fill(255);return {level:0,sourceBounds:b,imageData:{width:w,height:h,components:4,getData:async()=>data,dispose:()=>{}}};};
  const p=await f.host.preview('composite',{widthCM:2.54/300,knockout:false,cleanup:'none'},{x:50,y:50});
  assert.equal(p.src.width,1);assert.equal(p.src.height,1);assert.deepEqual(Array.from(p.src.data),[255,255,255,255]);assert.ok(f.calls.filter(c=>c[0]==='get').length>60);
+});
+
+test('native views preserve the printable layer and are removed before releasing for export',async()=>{
+ const f=fixture(),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50,key:'#000000'},s=await f.host.beginSession('layer',o);
+ const original=f.result.layers[0],pixels=original.data.slice();
+ for(const mode of ['original','garment','mask','compare']){
+  await f.host.workspaceView(s,mode,{...o,comparePosition:50});assert.equal(f.result.layers.length,2);assert.notEqual(s.workspaceLayerID,s.layerID);assert.deepEqual(original.data,pixels);
+ }
+ await f.host.workspaceView(s,'transparent',o);assert.equal(f.result.layers.length,1);assert.equal(s.workspaceLayerID,null);
+ await f.host.workspaceView(s,'mask',o);
+ await f.host.updateSession(s,{...o,outputWhite:160},{check:()=>{},pause:async()=>{},current:()=>true},()=>{});
+ assert.equal(f.result.layers.length,2);await f.host.releaseSession(s);assert.equal(f.result.layers.length,1);assert.equal(s.closed,true);assert.equal(f.result.layers[0].id,s.layerID);
+});
+test('a failed workspace presentation rolls back its layer and keeps the last view and source',async()=>{
+ const f=fixture(),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50,key:'#000000'},s=await f.host.beginSession('layer',o);
+ await f.host.workspaceView(s,'garment',o);const id=s.workspaceLayerID,before=f.result.layers.map(l=>l.id);let calls=0;
+ await assert.rejects(f.host.workspaceView(s,'mask',o,()=>{if(++calls>3)throw Error('replaced view');}),/replaced view/);
+ assert.equal(s.workspaceLayerID,id);assert.deepEqual(f.result.layers.map(l=>l.id),before);assert.equal(s.closed,false);await f.host.cancelSession(s);assert.deepEqual(f.app.documents.map(d=>d.id),[7]);
 });
