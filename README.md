@@ -1,10 +1,15 @@
-# Halftone DTF — Photoshop UXP · 0.6.3 RC
+# Halftone DTF — Photoshop UXP · 0.6.4 RC
 
 Panel en español para preparar arte de color con huecos transparentes para DTF. Flujo **Preparar → Ajustar → Exportar**, tamaño proporcional y salida fija a 300 ppp. Destino inicial: Windows / Photoshop 25.0 o superior. Procesamiento local sin dependencias de ejecución. La consulta opcional de versiones usa GitHub y no envía imágenes.
 
 **Candidato de versión.** Las pruebas automáticas usan el motor real y un host Photoshop simulado. Photoshop no está disponible en este entorno: instalación, interfaz UXP, archivos nativos y transferencia física siguen pendientes. El CCX local requiere comprobación y empaquetado oficial antes de distribución estable.
 
-**0.6.3:** controles rediseñados, sliders de ancho completo y limpieza por botones. Los niveles de salida y sombras se abren desde **Salida y sombras**. El inspector cerrado evita procesamiento de detalle; las vistas reutilizan temporalmente el resultado calculado. [Análisis UX y rendimiento](docs/UX-RENDIMIENTO-0.6.3.md).
+**0.6.4:** controles reales de **Adobe Spectrum Web Components**, con wrappers oficiales para UXP. Panel minimalista: preparación numerada, colores con HEX visible, sliders amplios, opciones avanzadas plegables y acciones siempre visibles. Conserva las optimizaciones de rendimiento de 0.6.3. [Diseño, compatibilidad y pruebas](docs/INTERFAZ-SPECTRUM-0.6.4.md).
+
+![Preparación](docs/UI-PREPARAR-0.6.4.png)
+![Ajustes](docs/UI-AJUSTAR-0.6.4.png)
+
+Las capturas ejecutan el HTML, CSS y Spectrum compilado en Chromium con host simulado; el slider de Photoshop se representa con un sustituto de prueba. No son capturas de Photoshop.
 
 ## Instalación y actualizaciones
 
@@ -22,13 +27,13 @@ Introduce ancho o alto en **cm o pulgadas**: el otro lado permanece proporcional
 
 Selecciona el color con **Cuentagotas**, que abre el selector nativo de Photoshop y permite tomar una muestra del lienzo. Puedes escribir un HEX y abrir **Ajustar eliminación** para tolerancia/transición. Durante edición se presenta el original al abrir el selector para evitar muestrear la trama. El knockout elimina ese color también dentro del diseño; no es un selector exclusivo del fondo conectado al borde.
 
-Elige forma, lineatura y ángulo. **Crear semitonos** toma una instantánea redimensionada a 300 ppp y crea otra pestaña ya tramada. Mantiene fijados el documento, capa y geometría del origen. Cambiar el documento activo no cambia la fuente.
+Elige forma, lineatura y ángulo. **Crear vista de semitonos** toma una instantánea redimensionada a 300 ppp y crea otra pestaña ya tramada. Mantiene fijados el documento, capa y geometría del origen. Cambiar el documento activo no cambia la fuente.
 
 ## 2 · Ajustar
 
-El lienzo de Photoshop es la vista principal. El panel compacto mantiene color, niveles, sombras, cuatro vistas y limpieza. **Editar trama** muestra forma, LPI y ángulo; **Más color** y **Detalles** abren sus parámetros adicionales. **Inspeccionar** conserva el mockup a escala, miniatura, zoom y diagnósticos.
+El lienzo de Photoshop es la vista principal. El panel compacto mantiene color, niveles, sombras, cuatro vistas y limpieza. **Trama** muestra forma, LPI y ángulo; **Color** y **Detalles** abren sus parámetros adicionales. **Inspeccionar** conserva el mockup a escala, miniatura, zoom y diagnósticos.
 
-En una instalación limpia, los valores iniciales de referencia son **30 LPI, 33°, forma redonda, entrada 7 / 2 / 100 y salida 0 / 255**. **Valores iniciales** restablece los cinco niveles. Se conservan preferencias existentes y recetas: estos números son un punto de partida, no una calibración universal.
+En una instalación limpia, los valores iniciales de referencia son **30 LPI, 33°, forma redonda, entrada 7 / 2 / 100 y salida 0 / 255**. **Restablecer** restablece los cinco niveles. Se conservan preferencias existentes y recetas: estos números son un punto de partida, no una calibración universal.
 
 Los niveles actúan sobre **cobertura**, conservando RGB. Los controles de color modifican RGB por separado. La compensación y el tratamiento de bordes son algoritmos independientes, no una reproducción del algoritmo propietario de DTPrep. Ninguno garantiza restaurar colores que no están en el archivo.
 
@@ -82,10 +87,14 @@ La ayuda integrada explica el flujo y permite exportar diagnóstico sin píxeles
 
 ## Pruebas y distribución
 
-No requiere `npm install`.
+El usuario final no instala dependencias. El mantenedor compila los controles desde el lockfile; el CCX incluye Spectrum y sus licencias para uso local sin descargas.
 
 ```sh
+npm ci
+npm run build:ui
 npm test
+npm run test:ui
+npm run distribution:test
 npm run check
 npm run package
 npm run release:check

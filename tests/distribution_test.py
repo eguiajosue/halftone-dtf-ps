@@ -1,5 +1,8 @@
 import importlib.util
 import json
+import shutil
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -63,6 +66,28 @@ class DistributionTests(unittest.TestCase):
         with self.assertRaises(Exception):
             distribution.release(self.make_ccx(), self.root / 'halftone-update.json')
         self.assertFalse((self.root / 'halftone-update.json').exists())
+
+    def test_candidate_contains_offline_ui_but_excludes_build_dependencies(self):
+        scripts = self.root / 'scripts'
+        scripts.mkdir()
+        shutil.copyfile(Path(__file__).parents[1] / 'scripts/package.py', scripts / 'package.py')
+        vendor = self.root / 'plugin/vendor'
+        vendor.mkdir()
+        (vendor / 'spectrum.js').write_text('/* bundled UI */')
+        (vendor / 'THIRD-PARTY-NOTICES.txt').write_text('license fixture')
+        dependencies = self.root / 'node_modules/browser'
+        dependencies.mkdir(parents=True)
+        (dependencies / 'chromium').write_text('build-only browser')
+        updater = self.root / 'installer/windows'
+        updater.mkdir(parents=True)
+        (updater / 'README.md').write_text('updater fixture')
+        subprocess.run([sys.executable, str(scripts / 'package.py')], check=True, capture_output=True)
+        with ZipFile(self.root / 'dist/Halftone-DTF-0.6.1.ccx') as archive:
+            self.assertIn('vendor/spectrum.js', archive.namelist())
+            self.assertIn('vendor/THIRD-PARTY-NOTICES.txt', archive.namelist())
+        with ZipFile(self.root / 'dist/Halftone-DTF-0.6.1-proyecto.zip') as archive:
+            self.assertFalse(any('node_modules' in name for name in archive.namelist()))
+            self.assertIn('Halftone-DTF/plugin/vendor/spectrum.js', archive.namelist())
 
 
 if __name__ == '__main__':

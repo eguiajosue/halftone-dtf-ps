@@ -1,19 +1,17 @@
-Interfaz renovada: botones consistentes, sliders amplios, selección de limpieza por botones y controles avanzados plegables. La vista Trama identifica claramente el fondo transparente. Se conservan presets por talla, cuentagotas, imágenes grandes, protección de detalles y lotes flexibles.
+Interfaz renovada con Adobe Spectrum Web Components y wrappers oficiales UXP: botones, acciones, casillas y campos HEX. Preparación numerada, controles espaciados, colores identificados, sliders amplios y Aplicar/Cancelar siempre visibles al desplazar los ajustes. Tamaños mostrados con dos decimales sin perder precisión interna.
 
-Rendimiento: elimina la pausa fija de 250 ms y el cálculo de detalle cuando el inspector está cerrado; reutiliza temporalmente los píxeles calculados para mostrar el lienzo y agrupa arrastres de comparación. El benchmark CPU de 2048 × 2048 px registra 19–33 % menos tiempo frente a 0.6.2, con salida idéntica. Esta cifra no mide la duración total dentro de Photoshop.
-
-Versión entregada con panel compacto, vistas nativas, presets de tallas, niveles, protección de detalles, procesamiento de imágenes grandes y lotes flexibles. Incluye preparación de distribución Adobe y acompañante de actualizaciones para Windows.
+Conserva presets por talla, cuentagotas, vistas y comparación en el lienzo, protección de detalles, imágenes grandes, proyectos, recetas y lotes flexibles. Mantiene las optimizaciones del motor de 0.6.3. No se atribuye una mejora adicional de velocidad al cambio de biblioteca.
 
 Archivos:
-- `Halftone-DTF-0.6.3.ccx`: candidato de instalación para Photoshop 25.0 o superior.
-- `Halftone-DTF-0.6.3-proyecto.zip`: proyecto completo con código y documentación.
+- `Halftone-DTF-0.6.4.ccx`: candidato de instalación para Photoshop 25.0 o superior.
+- `Halftone-DTF-0.6.4-proyecto.zip`: código, documentación y controles ya compilados.
 - `Halftone-DTF-Updater-Windows.zip`: acompañante de Windows.
 - `SHA256SUMS.txt`: checksum del CCX.
 
-Validación automática: 125 pruebas JavaScript, 4 de distribución Python y 10 del acompañante en Windows aprobadas. Estas últimas simulan Adobe UPIA y no registran una tarea real.
+Validación automática: 129 pruebas JavaScript, 5 de distribución Python, 10 escenarios de interfaz con Spectrum real en Chromium y 10 del acompañante Windows. El host Photoshop y Adobe UPIA se simulan en estas pruebas; no instalan ni registran tareas reales. El paquete incluye Spectrum y licencias sin node_modules ni navegador.
 
-El CCX es un candidato ZIP reproducible; todavía debe empaquetarse/comprobarse con las herramientas de Adobe. No se afirma instalación nativa, aprobación Marketplace ni validación de impresión física. Esta publicación es un prerelease y no es elegible para instalación automática. El acompañante solo instala releases estables validados con su metadata completa; hoy se detendrá si no existe uno.
+El CCX es un candidato ZIP reproducible; todavía debe empaquetarse/comprobarse con herramientas de Adobe. No se afirma aprobación Marketplace ni validación física. Es un prerelease y no es elegible para instalación automática. El acompañante solo instala releases estables validados con metadata completa.
 
-Para probar el CCX: abre el archivo con Creative Cloud y revisa su instalación. Si Adobe rechaza el candidato, sigue la guía de empaquetado oficial. El usuario final de un CCX validado no requiere UXP Developer Tools.
+La nueva interfaz debe revisarse en Photoshop, especialmente sliders nativos, foco, teclado y panel mínimo. Capturas y método: https://github.com/eguiajosue/halftone-dtf-ps/blob/main/docs/INTERFAZ-SPECTRUM-0.6.4.md
 
-Guía: https://github.com/eguiajosue/halftone-dtf-ps/blob/main/docs/INSTALACION-Y-ACTUALIZACIONES.md
+Guía de instalación: https://github.com/eguiajosue/halftone-dtf-ps/blob/main/docs/INSTALACION-Y-ACTUALIZACIONES.md

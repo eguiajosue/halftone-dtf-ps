@@ -1,5 +1,13 @@
 # Historial
 
+## 0.6.4 RC — 2026-10-09
+
+Integra Adobe Spectrum Web Components mediante wrappers oficiales de UXP: botones, acciones, casillas y campos HEX. Conserva el slider nativo y los campos numéricos/selectores compatibles con Photoshop 25. Preparación numerada, navegación por etapas, color y HEX visibles, vistas y limpieza segmentadas y acciones fijadas fuera del área desplazable. Opciones avanzadas accesibles a demanda; funciones de tallas, protección y lotes conservadas.
+
+Tamaños mostrados con dos decimales, conservando precisión interna al cambiar unidad o actualizar el origen. Inicio bloqueado con diagnóstico si falta registrar Spectrum. Compilación reproducible con lockfile, licencias incluidas y dependencias de desarrollo excluidas del instalador.
+
+129 pruebas JavaScript, 5 Python y 10 escenarios de interacción con Spectrum real en Chromium; CI comprueba además 10 pruebas del acompañante Windows. Capturas de navegador en `docs/INTERFAZ-SPECTRUM-0.6.4.md`. La nueva interfaz y su compatibilidad nativa deben validarse en Photoshop; sigue siendo RC.
+
 ## 0.6.3 RC — 2026-10-09
 
 Rediseño del panel: botones y campos coherentes, indicadores de etapa, sliders de ancho completo, limpieza segmentada y vistas Original / Prenda / Trama / Máscara. Salida y sombras plegables; presets, cuentagotas, protección y lotes conservados. Versión del pie sincronizada con el manifest.
