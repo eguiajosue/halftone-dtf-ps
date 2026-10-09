@@ -9,6 +9,7 @@
       <header>
         <div class="brand">
           <h1>HALFTONE DTF</h1>
+          <span id="stageBadge" class="stage-badge">Preparar</span>
           <button id="toggleTools" class="menu-button" aria-label="Herramientas" aria-expanded="false">☰</button>
         </div>
         <p id="updateNotice" class="hidden"></p>
@@ -225,11 +226,11 @@
           <div class="row color-row">
             <label class="check">
               <input checked="" id="knockoutEdit" type="checkbox"> Eliminar color</label>
-            <button id="foregroundEdit" class="swatch" aria-label="Color a eliminar y cuentagotas">Color</button>
+            <button id="foregroundEdit" class="swatch" aria-label="Color a eliminar y cuentagotas" title="Elegir color a eliminar">Elegir</button>
           </div>
           <div class="row color-row">
             <span class="color-caption">Fondo de prenda</span>
-            <button id="pickBackground" type="button" class="swatch" aria-label="Color de la prenda">Color</button>
+            <button id="pickBackground" type="button" class="swatch" aria-label="Color de la prenda" title="Elegir fondo de la prenda">Elegir</button>
           </div>
           <label class="check">
             <input checked="" id="linkBackground" type="checkbox">
@@ -237,7 +238,7 @@
           </label>
         </section>
         <div class="row">
-          <button id="resetLevels">Valores iniciales</button>
+          <button id="resetLevels">Restablecer niveles</button>
           <button id="editScreen" type="button">Editar trama</button>
         </div>
         <section id="tramaControls" class="control-card hidden">
@@ -259,7 +260,7 @@
             <input id="halftoneEdit" type="checkbox" checked=""> Activar trama</label>
         </section>
         <section class="control-card" id="levelsControls">
-          <h2>Niveles · negro / medios / blanco</h2>
+          <h2>Niveles de entrada</h2>
           <div class="levels-row">
             <div class="level">
               <label>Negro<input id="inputBlack" max="254" min="0" step="1" type="number" value="7">
@@ -277,6 +278,8 @@
               <sp-slider id="inputWhiteSlider" max="255" min="1" show-value="false" value="100"></sp-slider>
             </div>
           </div>
+          <button id="toggleOutput" class="quiet" aria-expanded="false">Salida y sombras ▾</button>
+          <div id="outputControls" class="hidden">
           <h2>Niveles de salida</h2>
           <div class="levels-row">
             <div class="level">
@@ -291,16 +294,17 @@
             </div>
           </div>
           <p class="hidden">Blanco = mayor cobertura. Reducir el blanco de salida fuerza trama en zonas sólidas. Los colores originales se conservan.</p>
-        </section>
         <div class="level">
           <label>Compensar sombras · %<input id="shadowBoost" max="100" min="0" type="number" value="0">
           </label>
           <sp-slider id="shadowBoostSlider" max="100" min="0" show-value="false" value="0"></sp-slider>
         </div>
+          </div>
+        </section>
         <div class="view-buttons">
           <button id="viewOriginal">Original</button>
           <button id="viewGarment" class="active">Prenda</button>
-          <button id="viewTransparent">Alfa</button>
+          <button id="viewTransparent" aria-label="Trama sobre fondo transparente">Trama</button>
           <button id="viewMask">Máscara</button>
         </div>
         <label class="check compare-toggle">
@@ -312,7 +316,10 @@
         </div>
         <section class="control-card" id="cleanupControls">
           <h2>Limpieza de partículas</h2>
-          <label>Nivel<select id="cleanup">
+          <div class="segmented" aria-label="Limpieza de partículas">
+            <button id="cleanupNone">Sin</button><button id="cleanupLow">Baja</button><button id="cleanupStandard" class="active">Normal</button><button id="cleanupHigh">Alta</button>
+          </div>
+          <label class="hidden">Nivel<select id="cleanup">
               <option value="none">Sin limpieza</option>
               <option value="low">Baja</option>
               <option selected="" value="standard">Normal</option>
@@ -696,7 +703,7 @@
       </div>
       <button class="hidden" id="cancelPreparation">Detener preparación</button>
       <p id="status" role="status">Abre tu diseño en Photoshop para empezar.</p>
-      <footer>0.6.0 RC</footer>
+      <footer id="footerVersion"></footer>
     </main>
     <script src="main.js"></script>
   </body>

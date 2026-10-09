@@ -1,14 +1,16 @@
-Corrección: las lecturas de composición completa y la exportación PNG omiten `layerID` en lugar de enviar un valor indefinido a Photoshop. Se conservan los IDs numéricos para lectura por capa. Incluye regresiones que reproducen la validación nativa.
+Interfaz renovada: botones consistentes, sliders amplios, selección de limpieza por botones y controles avanzados plegables. La vista Trama identifica claramente el fondo transparente. Se conservan presets por talla, cuentagotas, imágenes grandes, protección de detalles y lotes flexibles.
+
+Rendimiento: elimina la pausa fija de 250 ms y el cálculo de detalle cuando el inspector está cerrado; reutiliza temporalmente los píxeles calculados para mostrar el lienzo y agrupa arrastres de comparación. El benchmark CPU de 2048 × 2048 px registra 19–33 % menos tiempo frente a 0.6.2, con salida idéntica. Esta cifra no mide la duración total dentro de Photoshop.
 
 Versión entregada con panel compacto, vistas nativas, presets de tallas, niveles, protección de detalles, procesamiento de imágenes grandes y lotes flexibles. Incluye preparación de distribución Adobe y acompañante de actualizaciones para Windows.
 
 Archivos:
-- `Halftone-DTF-0.6.2.ccx`: candidato de instalación para Photoshop 25.0 o superior.
-- `Halftone-DTF-0.6.2-proyecto.zip`: proyecto completo con código y documentación.
+- `Halftone-DTF-0.6.3.ccx`: candidato de instalación para Photoshop 25.0 o superior.
+- `Halftone-DTF-0.6.3-proyecto.zip`: proyecto completo con código y documentación.
 - `Halftone-DTF-Updater-Windows.zip`: acompañante de Windows.
 - `SHA256SUMS.txt`: checksum del CCX.
 
-Validación automática: 119 pruebas JavaScript, 4 de distribución Python y 10 del acompañante en Windows aprobadas. Estas últimas simulan Adobe UPIA y no registran una tarea real.
+Validación automática: 125 pruebas JavaScript, 4 de distribución Python y 10 del acompañante en Windows aprobadas. Estas últimas simulan Adobe UPIA y no registran una tarea real.
 
 El CCX es un candidato ZIP reproducible; todavía debe empaquetarse/comprobarse con las herramientas de Adobe. No se afirma instalación nativa, aprobación Marketplace ni validación de impresión física. Esta publicación es un prerelease y no es elegible para instalación automática. El acompañante solo instala releases estables validados con su metadata completa; hoy se detendrá si no existe uno.
 

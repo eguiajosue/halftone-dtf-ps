@@ -16,7 +16,7 @@ function tileView(mode,original,result,crop,size,options){
     const split=Math.round(size.width*(options.comparePosition??50)/100),local=split-crop.left;
     if(split>0&&split<size.width&&local>=0&&local<crop.width)for(let y=0;y<crop.height;y++)rgb.fill(255,(y*crop.width+local)*3,(y*crop.width+local+1)*3);
   }
-  for(let p=0;p<crop.width*crop.height;p++){rgba.set(rgb.subarray(p*3,p*3+3),p*4);rgba[p*4+3]=255;}
+  for(let p=0;p<crop.width*crop.height;p++){rgba[p*4]=rgb[p*3];rgba[p*4+1]=rgb[p*3+1];rgba[p*4+2]=rgb[p*3+2];rgba[p*4+3]=255;}
   return rgba;
 }
 function createWorkspace({app,core,imaging,readRGBA,profile}){
@@ -30,7 +30,7 @@ function createWorkspace({app,core,imaging,readRGBA,profile}){
       if(layer)await layer.delete();session.workspaceLayerID=null;
     },{commandName:'Conservar solo el resultado DTF'});
   }
-  function show(session,mode,options,externalCheck=()=>{}){
+  function show(session,mode,options,externalCheck=()=>{},resultStore=null){
     if(!supported.includes(mode))return Promise.resolve();
     const revision=session.workspaceRevision=(session.workspaceRevision||0)+1,previous=session.workspaceTask;
     const check=()=>{externalCheck();if(session.closed||revision!==session.workspaceRevision)throw superseded();};
@@ -51,14 +51,24 @@ function createWorkspace({app,core,imaging,readRGBA,profile}){
           let first=true;
           for(const crop of tiles(session.size.width,session.size.height)){
             check();if(context.isCancelled)throw superseded();
-            const original=await source.read(crop);
-            const native=await readRGBA(doc,resultLayer.id,{left:crop.left,top:crop.top,right:crop.left+crop.width,bottom:crop.top+crop.height});
-            const result=new Uint8Array(crop.width*crop.height*4);
-            for(let y=0;y<native.height;y++){
-              const offset=((native.bounds.top-crop.top+y)*crop.width+native.bounds.left-crop.left)*4;
-              result.set(native.data.subarray(y*native.width*4,(y+1)*native.width*4),offset);
+            // Use the just-computed output only for this awaited presentation.
+            // View-only changes fall back to Photoshop; never retain another full image.
+            const needsOriginal=['original','beforeGarment','compare'].includes(mode);
+            const needsResult=!['original','beforeGarment'].includes(mode);
+            const original=needsOriginal?(await source.read(crop)).data:null;
+            let result=null;
+            if(needsResult){
+              if(resultStore)result=(await resultStore.read(crop)).data;
+              else{
+                const native=await readRGBA(doc,resultLayer.id,{left:crop.left,top:crop.top,right:crop.left+crop.width,bottom:crop.top+crop.height});
+                result=new Uint8Array(crop.width*crop.height*4);
+                for(let y=0;y<native.height;y++){
+                  const offset=((native.bounds.top-crop.top+y)*crop.width+native.bounds.left-crop.left)*4;
+                  result.set(native.data.subarray(y*native.width*4,(y+1)*native.width*4),offset);
+                }
+              }
             }
-            const rgba=tileView(mode,original.data,result,crop,session.size,options);let im;
+            check();const rgba=tileView(mode,original,result,crop,session.size,options);let im;
             try{
               im=await imaging.createImageDataFromBuffer(rgba,{width:crop.width,height:crop.height,components:4,colorSpace:'RGB',colorProfile:profile});check();
               await imaging.putPixels({documentID:doc.id,layerID:newLayer.id,imageData:im,replace:first,targetBounds:{left:crop.left,top:crop.top}});first=false;
