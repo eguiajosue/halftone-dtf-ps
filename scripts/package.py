@@ -1,5 +1,6 @@
 """Build reproducible ZIP/CCX candidate without requiring Adobe tools on Linux.
 For release packaging use UXP Developer Tool on Windows and test in Photoshop.
+Candidate files are never used by the automatic stable-release updater.
 """
 import hashlib
 import json
@@ -25,6 +26,8 @@ ccx = OUT / f'Halftone-DTF-{version}.ccx'
 write_zip(ccx, [(str(p.relative_to(ROOT / 'plugin')), p) for p in sorted((ROOT/'plugin').rglob('*')) if p.is_file()])
 sha = OUT/'SHA256SUMS.txt'
 sha.write_text(f'{hashlib.sha256(ccx.read_bytes()).hexdigest()}  {ccx.name}\n')
+updater = OUT / 'Halftone-DTF-Updater-Windows.zip'
+write_zip(updater, [(p.name, p) for p in sorted((ROOT/'installer/windows').iterdir()) if p.is_file()])
 entries = []
 for p in sorted(ROOT.rglob('*')):
     rel = p.relative_to(ROOT)
@@ -35,3 +38,4 @@ project = OUT / f'Halftone-DTF-{version}-proyecto.zip'
 write_zip(project,entries)
 print(project)
 print(ccx)
+print(updater)

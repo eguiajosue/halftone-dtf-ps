@@ -20,6 +20,7 @@ let previewPixels=512;
 let approvedResult=null;
 let initialToken=null,recipeList=[],profileAreas={},lastProject=null,assignments={},resumeRun=null,preflightResult=null;
 let displayUnit='cm',canonicalSize=null;
+let updateUI=null;
 const allSizes=[...sizing.SIZES,...sizing.CHILD_SIZES];
 function settings() {
   const o={};for(const id of settingIDs)o[id]=checks.includes(id)?$(id).checked:numeric.includes(id)?($(id).value===''?NaN:Number($(id).value)):$(id).value;
@@ -70,6 +71,7 @@ function controls(){
   $('captureSelection').disabled=busy||!session||session.sourceID==null;
   for(const id of ['lpiEdit','angleEdit','shapeEdit'])$(id).disabled=busy||!$('halftone').checked;
   $('widthCM').disabled=busy||$('sizeMode').value==='preset';$('heightCM').disabled=busy||$('sizeMode').value==='preset';
+  if(updateUI)updateUI.sync(busy);
 }
 function showStage(next){
   stage=next;for(const [name,id]of [['prepare','stepPrepare'],['edit','stepEdit'],['result','stepResult']])$(id).className=next===name?'current':'';
@@ -259,6 +261,7 @@ function init(){
   $('batchCancel').addEventListener('click',()=>{if(batchToken){batchToken.cancelled=true;controls();$('batchProgress').textContent='Deteniendo; se conservarán los PNG completados…';}});
   $('batchRun').addEventListener('click',()=>action(()=>executeBatch()));
   initExtras();initCompact();
+  updateUI=require('./update-ui').initUpdates({get:$,preferences:localStorage,fetchImpl:typeof fetch==='function'?fetch:undefined,photoshop:typeof fetch==='function'?require('photoshop').app.version:'25.0.0',open:(url,text)=>require('uxp').shell.openExternal(url,text)});
   try{adoptSource();}catch(_){status('Abre tu diseño y pulsa Usar documento actual.');}controls();
 }
 entrypoints.setup({panels:{halftoneDTF:{show(){}}}});
@@ -389,7 +392,7 @@ function initExtras(){
  $('openProject').addEventListener('click',()=>action(async()=>loadProjectAction(await storage.localFileSystem.getFolder())));
  $('reopenLastProject').addEventListener('click',()=>action(()=>loadProjectAction(lastProject)));
  $('nativeSelfTest').addEventListener('click',()=>action(async()=>{if(session)throw Error('Aplica o descarta la sesión antes de comprobar Photoshop.');const parent=await storage.localFileSystem.getFolder();if(!parent)return;initialToken={cancelled:false};controls();try{const r=await require('./native-validation').run(parent,checkInitial,status);status('Comprobación Photoshop: '+r.report.status+' · '+r.folder.name+(r.report.error?' · '+r.report.error:''));}finally{initialToken=null;controls();}}));
- $('diagnosticExport').addEventListener('click',()=>action(async()=>{const file=await storage.localFileSystem.getFileForSaving('diagnostico-halftone.json',{types:['json']});if(file)await file.write(JSON.stringify({plugin:'0.6.0',date:new Date().toISOString(),settings:recipesAPI.options(settings()),stage,stats:session?.stats||null,metrics:session?.metrics||null,photoshop:require('photoshop').app.version||'no disponible'},null,2));status('Diagnóstico exportado sin píxeles ni rutas del origen.');}));
+ $('diagnosticExport').addEventListener('click',()=>action(async()=>{const file=await storage.localFileSystem.getFileForSaving('diagnostico-halftone.json',{types:['json']});if(file)await file.write(JSON.stringify({plugin:'0.6.1',date:new Date().toISOString(),settings:recipesAPI.options(settings()),stage,stats:session?.stats||null,metrics:session?.metrics||null,photoshop:require('photoshop').app.version||'no disponible'},null,2));status('Diagnóstico exportado sin píxeles ni rutas del origen.');}));
  $('batchImageIndex').addEventListener('change',showAssignment);
  $('batchBothSides').addEventListener('change',batchInfo);
  if(typeof document.createElement==='function'){

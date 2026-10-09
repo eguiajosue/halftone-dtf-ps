@@ -1,15 +1,16 @@
-# Halftone DTF — Photoshop UXP · 0.6.0 RC
+# Halftone DTF — Photoshop UXP · 0.6.1 RC
 
-Panel en español para preparar arte de color con huecos transparentes para DTF. Flujo **Preparar → Ajustar → Exportar**, tamaño proporcional y salida fija a 300 ppp. Destino inicial: Windows / Photoshop 25.0 o superior. Sin servicios externos ni dependencias de ejecución.
+Panel en español para preparar arte de color con huecos transparentes para DTF. Flujo **Preparar → Ajustar → Exportar**, tamaño proporcional y salida fija a 300 ppp. Destino inicial: Windows / Photoshop 25.0 o superior. Procesamiento local sin dependencias de ejecución. La consulta opcional de versiones usa GitHub y no envía imágenes.
 
 **Candidato de versión.** Las pruebas automáticas usan el motor real y un host Photoshop simulado. Photoshop no está disponible en este entorno: instalación, interfaz UXP, archivos nativos y transferencia física siguen pendientes. El CCX local requiere comprobación y empaquetado oficial antes de distribución estable.
 
-## Instalar para validación
+## Instalación y actualizaciones
 
-1. Extrae todo el ZIP. Intenta abrir `installer/Halftone-DTF-0.6.0.ccx` con Creative Cloud Desktop.
-2. Si no acepta el candidato, carga `plugin/manifest.json` mediante [UXP Developer Tool](https://developer.adobe.com/photoshop/uxp/guides/devtool/), usando **Add Plugin → Load** y el modo desarrollador de Photoshop.
-3. Abre **Plugins → Halftone DTF**. Consulta `docs/VALIDACION-WINDOWS.md` antes de producción.
-4. Empaqueta la versión final con **Package** de UXP Developer Tool y prueba ese CCX instalado. Para Marketplace se necesita un ID registrado en Adobe Developer Distribution; el ID actual es de desarrollo.
+La distribución independiente usa un CCX empaquetado con Adobe e instalado por Creative Cloud: el usuario final no necesita Dev Tools. El mantenedor todavía debe producir y validar ese paquete en Windows/Photoshop. Los CCX generados por `npm run package` son candidatos, excluidos de las actualizaciones estables.
+
+**0.6.1 incorpora:** menú de versión/comprobación de releases, acompañante de Windows que instala con Adobe UPIA y registra una tarea por usuario, preparación de fuentes separada para Marketplace y workflow de release con control de evidencia. El acompañante instala solo releases estables completos con Photoshop cerrado y permite desactivar la tarea. No se ha probado una instalación nativa con Adobe en este entorno.
+
+Guía del usuario, activación, diagnóstico y pasos del mantenedor: [Instalación y actualizaciones](docs/INSTALACION-Y-ACTUALIZACIONES.md). Primer paso del mantenedor: `npm run distribution:prepare` y empaquetar `dist/adobe-independent/manifest.json` con UDT. Marketplace requiere la ficha/ID y aprobación de Adobe; no se publica automáticamente desde GitHub.
 
 ## 1 · Preparar
 
@@ -88,8 +89,8 @@ npm run package
 npm run release:check
 ```
 
-`release:check` debe fallar mientras falte evidencia de instalación, Photoshop, rendimiento, recuperación, RIP y transferencia/lavado en `release-validation.json`. No rellenar casillas sin evidencia. CI ejecuta pruebas y genera candidatos; no publica una versión estable.
+`release:check` debe fallar mientras falte evidencia de instalación, Photoshop, rendimiento, recuperación, RIP y transferencia/lavado en `release-validation.json`. No rellenar casillas sin evidencia. CI ejecuta pruebas de motor, distribución y acompañante de Windows y genera candidatos. Un tag de versión prepara un borrador de release solo si existe un CCX oficial coincidente y toda la evidencia requerida. La publicación estable es un paso de revisión final.
 
 Cambios actuales y pruebas nativas pendientes: `docs/REDISENO-0.6.0.md`. Documentación histórica: `docs/CIERRE-AUDITORIA-0.5.0.md`, `docs/ESTADO-ENTREGA.md`, `docs/VALIDACION-WINDOWS.md`, `docs/LOTES-Y-MEMORIA.md`, `docs/TAMANOS-Y-VISTAS.md`, `docs/INVESTIGACION.md`, `docs/VISTA-FLUJO-0.5.0.png` y carta `docs/CARTA-CALIBRACION.png` (1800 × 2100 px, imprimir a 15.24 × 17.78 cm sin escalar). La vista de interfaz es una maqueta del HTML/CSS, no captura de Photoshop.
 
-Repositorio: [eguiajosue/halftone-dtf-ps](https://github.com/eguiajosue/halftone-dtf-ps). El rediseño 0.6.0 se revisa en el PR #1, rama `design/ux-ui-proposal`; main conserva 0.5.0 hasta integrar el cambio. El instalador CCX sigue siendo un candidato de versión: completar las validaciones nativas y físicas antes de distribuir como estable. La licencia y las condiciones de soporte deben definirse antes de una distribución comercial.
+Repositorio: [eguiajosue/halftone-dtf-ps](https://github.com/eguiajosue/halftone-dtf-ps). El rediseño y la distribución 0.6.1 se revisan en el PR #1, rama `design/ux-ui-proposal`; main conserva 0.5.0 hasta integrar el cambio. El instalador CCX sigue siendo un candidato de versión: completar las validaciones nativas y físicas antes de distribuir como estable. La licencia y las condiciones de soporte deben definirse antes de una distribución comercial.

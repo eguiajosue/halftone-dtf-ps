@@ -1,5 +1,13 @@
 # Historial
 
+## 0.6.1 RC — 2026-10-09
+
+Consulta de releases estables desde el menú; intervalo de ocho horas, desactivación, comprobación manual, timeout y fallos de red sin bloquear el trabajo. Identidad, versión, canal, procedencia y archivos del release validados. Permisos de red limitados y apertura HTTPS con consentimiento de UXP.
+
+Acompañante independiente para Windows: instalación inicial y actualizaciones por tarea del usuario mediante Adobe UPIA, con Photoshop cerrado; verificación SHA-256/manifest, bloqueo de concurrencia, conservación de recibos y desactivación. No requiere Dev Tools al usuario, no eleva privilegios ni evade políticas. Su instalación real depende de un release estable oficialmente empaquetado y validado.
+
+Preparación de fuentes para Adobe UDT y Marketplace con IDs separados; workflow que exige evidencia nativa y CCX coincidente antes de crear un borrador de release. No publica automáticamente en Marketplace. Validación real en Windows/Creative Cloud/Photoshop sigue pendiente.
+
 ## 0.6.0 RC — 2026-10-09
 
 Panel compacto inspirado en las referencias: tamaño, trama y cuentagotas en preparación; niveles agrupados, vistas y limpieza en edición. Valores iniciales 30 LPI / 33°, entrada 7 / 2 / 100. Conserva presets, recetas, protección, imágenes grandes y lotes flexibles.

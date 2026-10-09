@@ -11,6 +11,7 @@
           <h1>HALFTONE DTF</h1>
           <button id="toggleTools" class="menu-button" aria-label="Herramientas" aria-expanded="false">☰</button>
         </div>
+        <p id="updateNotice" class="hidden"></p>
         <div class="hidden">
           <p id="stepLabel"></p>
           <span id="stepPrepare"></span>
@@ -21,6 +22,7 @@
       <section id="toolsPanel" class="hidden">
         <button id="toggleRecipes">Recetas y perfiles</button>
         <button id="toggleHelp">Ayuda y diagnóstico</button>
+        <button id="toggleUpdates">Versión y actualizaciones</button>
         <section id="sourceOptions" class="hidden">
           <h2>Origen</h2>
           <label>Procesar<select id="source">
@@ -51,6 +53,16 @@
           <p class="hint" id="resourceInfo"></p>
           <button id="cleanupCaches">Limpiar cachés abandonadas</button>
         </section>
+      </section>
+      <section id="updatesPanel" class="hidden">
+        <h2 id="pluginVersion">Halftone DTF</h2>
+        <label class="check"><input id="autoCheckUpdates" type="checkbox" checked> Buscar actualizaciones al abrir el panel</label>
+        <p id="updateStatus" class="hint" role="status" aria-live="polite"></p>
+        <div class="row">
+          <button id="checkUpdates">Buscar ahora</button>
+          <button id="openUpdate">Abrir releases</button>
+        </div>
+        <button id="updaterGuide">Instalación y actualización automática</button>
       </section>
       <section class="hidden" id="recipesPanel">
         <h2>Recetas del taller</h2>
