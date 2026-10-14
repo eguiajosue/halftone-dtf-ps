@@ -1,7 +1,7 @@
 'use strict';
 const {validate,hexRGB}=require('./engine');
 const NUMBERS=['lpi','angle','tolerance','softness','inputBlack','inputMidtone','inputWhite','outputBlack','outputWhite','minDiameterMM',
- 'alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','widthCM','heightCM','focusX','focusY','comparePosition','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','fillHolesMM','solidAbove'];
+ 'alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','widthCM','heightCM','focusX','focusY','comparePosition','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','fillHolesMM','solidAbove','inkColorMLm2','inkWhiteMLm2','inkColorPriceL','inkWhitePriceL','filmPriceM2'];
 const BOOLS=['knockout','recover','halftone','defringe','linkBackground','trimArt','convertCopy'];
 const STRINGS=['key','shape','cleanup','memoryMode','protection','viewMode','previewColor','sizeAxis','placement','shirtSize','garment','units','previewScope','gainPoints'];
 const text=(v,max=120)=>String(v||'').trim().slice(0,max);

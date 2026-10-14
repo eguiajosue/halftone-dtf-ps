@@ -10,6 +10,8 @@ Panel en español para preparar arte de color con huecos transparentes para DTF.
 
 Calidad de sombras y calibración (sin publicar): rellenar huecos menores, «sólido desde» y compensación de ganancia de punto desde la carta de calibración. [Cómo calibrar](docs/CALIBRACION-Y-CALIDAD-DTF.md).
 
+Presets de fábrica y estimación de tinta y costo por pieza (sin publicar): [detalles](docs/CALIBRACION-Y-CALIDAD-DTF.md).
+
 ![Preparación](docs/UI-PREPARAR-0.6.4.png)
 ![Ajustes](docs/UI-AJUSTAR-0.6.4.png)
 

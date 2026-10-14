@@ -63,7 +63,9 @@ class LiveRenderer{
         cov[p]=base>0?Math.max(1,Math.min(65535,Math.round(base*65535))):0;
       }
     }
-    this.cov=cov;this.covKey=key;return cov;
+    // Art that a screenless job would print solid: raw coverage of at least 50 %.
+    let solid=0;for(let p=0;p<cov.length;p++)if(cov[p]>=32768)solid++;
+    this.solidCount=solid;this.cov=cov;this.covKey=key;return cov;
   }
   async thresholds(n,hook){
     const key=screenKey(n);if(key==='none')return null;if(key===this.thrKey)return this.thr;
@@ -99,7 +101,7 @@ class LiveRenderer{
     const inkPixels=screened-cleanup.removedPixels+filled;
     return {mask,stats:Object.assign({cellPX:n.dpi/n.lpi,minArea,minDiameterMM:n.minDiameterMM,inkPixels,
       protectedPixels:0,regionInkPixels:inkPixels,regionProtectedPixels:0,regionScreenPixels:screened+filled,regionRemovedPixels:cleanup.removedPixels,
-      coveragePercent:inkPixels/count*100},cand?{filledPixels:filled}:null,cleanup)};
+      coveragePercent:inkPixels/count*100,solidPixels:this.solidCount},cand?{filledPixels:filled}:null,cleanup)};
   }
   // 8-connected islands smaller than minArea are cleared, as in engine.removeParticles.
   // The search stops once a component reaches minArea pixels or touches a pixel

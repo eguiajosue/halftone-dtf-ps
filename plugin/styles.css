@@ -84,3 +84,9 @@ sp-action-button{--mod-actionbutton-content-color-default-selected:#fff;--mod-ac
 .levels-values input{width:58px;height:26px;margin:0;padding:3px 6px;text-align:center;}
 .levels-caption{font-size:11px!important;font-weight:400!important;color:#bcbcbc!important;display:block!important;margin:4px 0 2px!important;}
 #levelsControls .levels-slider{display:block;}
+
+/* Preset selector and compact Prepare screen. */
+#presetCard{padding:0 0 2px;}#presetCard label{margin-bottom:4px;}#presetNote:empty{display:none;}#presetNote{margin:0 0 4px;}
+#prepareContent .prepare-card{padding:4px 0;}#prepareContent .section-heading{margin-bottom:6px;}#prepareContent label{margin-bottom:6px;}
+#prepareContent input,#prepareContent select{height:30px;margin-top:4px;}#prepareTrama{padding:8px 10px;}#prepareTrama .row>label{margin-bottom:2px;}
+#prepareContent .check{margin-bottom:4px;}#prepareContent .hint{margin:2px 0 6px;}#prepareContent{padding-bottom:6px;}

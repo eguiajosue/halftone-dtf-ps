@@ -6,11 +6,12 @@ const {LiveController}=require('./live');
 const sizing=require('./sizing');
 const batch=require('./batch');
 const {runBatch}=batch;
+const ink=require('./ink'),presets=require('./presets');
 const recipesAPI=require('./recipes'),projects=require('./project'),diagnostics=require('./diagnostics');
 const {CONTROL_SELECTOR,bootstrap}=require('./ui-controls');
 const $=id=>document.getElementById(id);
 const levels={inputBlack:7,inputMidtone:2,inputWhite:100,outputBlack:0,outputWhite:255};
-const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','fillHolesMM','solidAbove','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
+const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','fillHolesMM','solidAbove','inkColorMLm2','inkWhiteMLm2','inkColorPriceL','inkWhitePriceL','filmPriceM2','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
 const checks=['knockout','recover','linkBackground','halftone','defringe','trimArt','convertCopy'];
 const settingIDs=['source','key',...checks,...numeric,'shape','cleanup','viewMode','previewColor','sizeAxis','placement','shirtSize','memoryMode','protection','units','garment','previewScope','gainPoints'];
 const colorIDs=['key','knockout','tolerance','softness'];
@@ -26,7 +27,7 @@ let controlsBusy=null,viewTimer=null;
 const allSizes=[...sizing.SIZES,...sizing.CHILD_SIZES];
 function settings() {
   const o={};for(const id of settingIDs)o[id]=checks.includes(id)?$(id).checked:numeric.includes(id)?($(id).value===''?NaN:Number($(id).value)):$(id).value;
-  o.key=o.key.trim();o.previewColor=o.previewColor.trim();o.gainPoints=o.gainPoints.trim();
+  o.key=o.key.trim();o.previewColor=o.previewColor.trim();o.gainPoints=o.gainPoints.trim();Object.assign(o,ink.normalize(o));o.measureSolid=true;
   if(canonicalSize){o.widthCM=canonicalSize.widthCM;o.heightCM=canonicalSize.heightCM;}
   else{if(o.units==='in'){o.widthCM*=2.54;o.heightCM*=2.54;}}
   if(sourceInfo){o.documentID=sourceInfo.documentID;o.layerID=sourceInfo.layerID;o.sourceWidth=sourceInfo.width;o.sourceHeight=sourceInfo.height;}return o;
@@ -125,6 +126,10 @@ function adoptSource(){
   if(!Number.isFinite(Number($('widthCM').value))||Number($('widthCM').value)<=0)$('widthCM').value=fromCM(next.widthCM).toFixed(2);
   syncSize('width',canonicalSize?canonicalSize.widthCM:toCM(Number($('widthCM').value)));controls();save();status('Define el tamaño final y el color a eliminar.');
 }
+function inkText(stats,size){
+  try{if(!stats||!size||!Number.isFinite(stats.coveragePercent)||!Number.isFinite(size.widthCM))return '';return ink.describe(ink.estimate(stats,size,settings()));}catch(_){return '';}
+}
+function showInk(stats,size){$('inkEstimate').textContent=inkText(stats,size);}
 function summary(result){return `${result.size.widthCM.toFixed(2)} × ${result.size.heightCM.toFixed(2)} cm · 300 ppp · cobertura ${result.stats.coveragePercent.toFixed(1)}%.`;}
 function viewLabel(mode){return {original:'ORIGINAL · sin knockout ni trama · clic para tomar color',garment:'DESPUÉS · resultado sobre la prenda',beforeGarment:'ANTES · original sobre la misma prenda',compare:'COMPARACIÓN · izquierda antes / derecha después · misma prenda',transparent:'TRAMA · transparencia representada con cuadrícula',mask:'MÁSCARA · blanco imprime · negro transparente',removed:'ELIMINADO · partículas retiradas por limpieza',protection:'PROTECCIÓN · píxeles que conservan color sólido'}[mode];}
 async function paint(value,ctx){
@@ -146,7 +151,7 @@ async function paint(value,ctx){
   $('qualityWarnings').textContent=diagnostics.warnings(o,cached.stats).join(' ');
   $('viewLabel').textContent=viewLabel(o.viewMode);
   syncViews();
-  if(cached.exact)status('Resultado completo actualizado. '+summary(cached));
+  if(cached.exact){status('Resultado completo actualizado. '+summary(cached));showInk(cached.stats,cached.size);}
   else status('Detalle actualizado; calculando el lienzo completo…');
 }
 function scheduleView(){
@@ -274,7 +279,7 @@ function init(){
     if(!session.stats.inkPixels)throw Error('El resultado quedó vacío. Reduce tolerancia o limpieza y revisa el color.');
     if(host.clearWorkspace)await host.clearWorkspace(session);
     const result=session;approvedResult={width:result.size.width,height:result.size.height};await live.dispose();live=null;outputID=result.documentID;
-    $('resultInfo').textContent=summary(result);await host.releaseSession(result);session=null;previewCache=null;paintRevision++;
+    $('resultInfo').textContent=summary(result)+' '+inkText(result.stats,result.size);await host.releaseSession(result);session=null;previewCache=null;paintRevision++;
     showStage('result');status('Resultado conservado en Photoshop. Puedes exportarlo a PNG.'+(result.cacheWarning?' '+result.cacheWarning:''));
   }));
   $('export').addEventListener('click',()=>action(async()=>{
@@ -333,8 +338,41 @@ function refreshFileSelect(){
  for(let i=0;i<batchFiles.length;i++){const opt=document.createElement('option');opt.value=String(i);opt.textContent=(i+1)+'. '+batchFiles[i].name;$('batchImageIndex').appendChild(opt);}
  $('batchImageIndex').value=batchFiles[Number(selected)]?selected:'0';showAssignment();
 }
+function applyRecipeEntry(r){
+  try{const o={...r.options};if(session){delete o.widthCM;delete o.heightCM;delete o.units;delete o.sizeAxis;}
+   setFields(o);profileAreas=r.areas;localStorage.setItem('halftone-areas-v1',JSON.stringify(profileAreas));batchAreaDefaults();
+   $('profileBrand').value=r.profile.brand;$('profileModel').value=r.profile.model;$('profileMachine').value=r.profile.machine;$('profileRIP').value=r.profile.rip;$('profileMaterial').value=r.profile.material;$('profileCalibrated').checked=r.profile.calibrated;
+   if(stage==='batch'){for(const id of batchSharedIDs){if(checks.includes(id))$(id+'Batch').checked=$(id).checked;else $(id+'Batch').value=$(id).value;}batchInfo();}
+   syncCleanup();controls();save();
+   if(stage==='prepare'&&sourceInfo)updateSizeInfo();queue();status('Receta aplicada'+(session?' al tamaño de la sesión actual.':'.'));return true;
+  }catch(e){status(e.message);return false;}
+}
+function applyPreset(){
+  const value=$('presetSelect').value;if(busy)return;
+  if(!value){$('presetNote').textContent='';return;}
+  if(value.startsWith('recipe:')){
+    const r=recipeList.find(r=>r.id===value.slice(7));if(!r)return status('La receta ya no existe.');
+    if(applyRecipeEntry(r))$('presetNote').textContent='Receta guardada: '+r.name+'.';return;
+  }
+  const preset=presets.find(value.slice(7));if(!preset)return status('Preset desconocido.');
+  try{
+    setFields(presets.optionsFor(preset.id));syncCleanup();controls();save();
+    $('presetNote').textContent=preset.note;
+    if(stage==='prepare'&&sourceInfo)updateSizeInfo();queue();
+    status('Preset aplicado: '+preset.name+'. Mantiene tu tamaño, calibración y costos.');
+  }catch(e){status(e.message);}
+}
+function refreshPresets(){
+  if(typeof document.createElement!=='function')return;
+  const select=$('presetSelect'),current=select.value;select.innerHTML='';
+  const add=(value,text)=>{const opt=document.createElement('option');opt.value=value;opt.textContent=text;select.appendChild(opt);};
+  add('','Personalizado');for(const p of presets.PRESETS)add('preset:'+p.id,p.name);
+  for(const r of recipeList)add('recipe:'+r.id,'Receta · '+r.name);
+  select.value=current;
+}
 function refreshRecipes(){
  if(typeof document.createElement!=='function')return;
+ refreshPresets();
  for(const id of ['recipeSelect','imageRecipe']){
   const current=$(id).value;$(id).innerHTML='';const empty=document.createElement('option');empty.value='';empty.textContent=id==='imageRecipe'?'Ajustes comunes':'Elegir receta…';$(id).appendChild(empty);
   for(const recipe of recipeList){const opt=document.createElement('option');opt.value=recipe.id;opt.textContent=recipe.name;$(id).appendChild(opt);}$(id).value=current;
@@ -410,13 +448,9 @@ function initExtras(){
  }));
  $('applyRecipe').addEventListener('click',()=>{
   if(busy)return;const r=recipeList.find(r=>r.id===$('recipeSelect').value);if(!r)return status('Elige una receta.');
-  try{const o={...r.options};if(session){delete o.widthCM;delete o.heightCM;delete o.units;delete o.sizeAxis;}
-   setFields(o);profileAreas=r.areas;localStorage.setItem('halftone-areas-v1',JSON.stringify(profileAreas));batchAreaDefaults();
-   $('profileBrand').value=r.profile.brand;$('profileModel').value=r.profile.model;$('profileMachine').value=r.profile.machine;$('profileRIP').value=r.profile.rip;$('profileMaterial').value=r.profile.material;$('profileCalibrated').checked=r.profile.calibrated;
-   if(stage==='batch'){for(const id of batchSharedIDs){if(checks.includes(id))$(id+'Batch').checked=$(id).checked;else $(id+'Batch').value=$(id).value;}batchInfo();}
-   if(stage==='prepare'&&sourceInfo)updateSizeInfo();queue();status('Receta aplicada'+(session?' al tamaño de la sesión actual.':'.'));
-  }catch(e){status(e.message);}
+  applyRecipeEntry(r);
  });
+ $('presetSelect').addEventListener('change',applyPreset);
  $('deleteRecipe').addEventListener('click',()=>{if(busy)return;recipeList=recipeList.filter(r=>r.id!==$('recipeSelect').value);localStorage.setItem('halftone-recipes-v1',recipesAPI.serialize(recipeList));refreshRecipes();status('Receta eliminada de este equipo.');});
  $('importRecipes').addEventListener('click',()=>action(async()=>{const file=await storage.localFileSystem.getFileForOpening({types:['json']});if(!file)return;
   const incoming=recipesAPI.parse(await file.read()),merged=recipeList.slice();for(const r of incoming){const index=merged.findIndex(old=>old.id===r.id);if(index<0)merged.push(r);else merged[index]=r;}if(merged.length>100)throw Error('La importación supera 100 recetas.');
@@ -488,7 +522,7 @@ function initCompact(){
   $('cleanup').value=value;$('minDiameterMM').value=LEVELS[value].minDiameterMM;syncCleanup();queue();
  });
  const repaint=()=>{syncViews();save();if(previewCache)paint(previewCache).catch(e=>{if(!e.superseded)status(e.message);});};
- for(const [button,panel]of [['toggleTools','toolsPanel'],['toggleSource','sourceOptions'],['togglePerformance','performancePanel'],['toggleCalibration','calibrationPanel'],['togglePrepareColor','prepareColorAdvanced'],['toggleBatchCommon','batchCommonPanel'],['toggleOutput','outputControls']])$(button).addEventListener('click',()=>{
+ for(const [button,panel]of [['toggleTools','toolsPanel'],['toggleSource','sourceOptions'],['togglePerformance','performancePanel'],['toggleCalibration','calibrationPanel'],['toggleInk','inkPanel'],['togglePrepareColor','prepareColorAdvanced'],['toggleBatchCommon','batchCommonPanel'],['toggleOutput','outputControls']])$(button).addEventListener('click',()=>{
   toggle(panel);if($(button).setAttribute)$(button).setAttribute('aria-expanded',String($(panel).className!=='hidden'));
  });
  $('editScreen').addEventListener('click',()=>{syncScreen();$('tramaControls').className=$('tramaControls').className.includes('hidden')?'control-card':'control-card hidden';});
@@ -506,6 +540,7 @@ function initCompact(){
   if(color){$('previewColor').value=color;$('linkBackground').checked=false;if(previewCache)await paint(previewCache);}
  }));
  $('toggleBatchAreas').addEventListener('click',()=>{$('batchAreasPanel').className=$('batchAreasPanel').className==='compact-areas'?'':'compact-areas';});
+ for(const id of ink.IDS)$(id).addEventListener('input',()=>{save();if(session)showInk(session.stats,session.size);});
  $('gainPoints').addEventListener('input',()=>{if(updateGainInfo()){save();queue();}});
  $('clearGain').addEventListener('click',()=>{$('gainPoints').value='';updateGainInfo();save();queue();});
  syncViews();syncScreen();updateGainInfo();

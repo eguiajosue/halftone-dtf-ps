@@ -12,7 +12,7 @@ function variantPlan(width,height,placement,size,areas,garment='adult'){
 function safeName(name){return name.replace(/\.[^.]+$/,'').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').replace(/[. ]+$/,'').slice(0,80)||'imagen';}
 function outputName(file,index,size,placement){return String(index+1).padStart(3,'0')+'_'+safeName(file.name)+'_'+size+'_'+placement+'_300ppp.png';}
 function csv(rows){
- const fields=['image','size','placement','status','output','widthCM','heightCM','widthPX','heightPX','dpi','error'];
+ const fields=['image','size','placement','status','output','widthCM','heightCM','widthPX','heightPX','dpi','coveragePercent','colorML','whiteML','cost','error'];
  const quote=v=>{let s=String(v==null?'':v);if(typeof v==='string'&&/^[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};
  return '\ufeff'+fields.join(',')+'\r\n'+rows.map(row=>fields.map(k=>quote(row[k])).join(',')).join('\r\n');
 }
@@ -104,6 +104,8 @@ async function runBatch({files,folder,sizes=['M','L'],placement='front',areas,op
     const o={...row.recipe,frame,documentID:source.documentID,widthCM:p.requestedWidthCM,heightCM:p.requestedHeightCM,sizeAxis:'width',focusX:50,focusY:50};
     session=await host.beginSession('composite',o,(phase,value)=>{checkToken(token);onProgress({done,total:rows.length,image:files[i].name,size:row.size,phase,value,message:`${done+1}/${rows.length} · ${files[i].name} · ${row.size} · ${row.placement}`});});
     checkToken(token);if(!session.stats.inkPixels)throw Error('El resultado quedó vacío. Ajusta knockout/niveles y repite.');
+    if(session.size){const e=require('./ink').estimate(session.stats,session.size,row.recipe);
+     Object.assign(row,{coveragePercent:+e.printedPercent.toFixed(2),colorML:+e.colorML.toFixed(3),whiteML:+e.whiteML.toFixed(3),cost:e.priced?+e.totalCost.toFixed(3):''});}
     if(session.size)Object.assign(row,{widthCM:session.size.widthCM,heightCM:session.size.heightCM,widthPX:session.size.width,heightPX:session.size.height});
     let basename=outputName(files[i],i,row.size,row.placement),attempt=1;const names=new Set((await folders[row.size].getEntries()).map(f=>f.name));
     while(names.has(basename))basename=outputName(files[i],i,row.size,row.placement).replace('.png','_r'+(++attempt)+'.png');

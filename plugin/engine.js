@@ -21,7 +21,7 @@ function validate(o) {
     knockout: true, key: '#000000', tolerance: 2, softness: 35, recover: false,
     strength: 100, gamma: 1, inputBlack: 0, inputMidtone: 1, inputWhite: 255,
     outputBlack: 0, outputWhite: 255, minDiameterMM: null, originX: 0, originY: 0,
-    halftone:true,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringe:false,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1,fillHolesMM:0,solidAbove:100,gainPoints:''}, o);
+    halftone:true,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringe:false,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1,fillHolesMM:0,solidAbove:100,gainPoints:'',measureSolid:false}, o);
   n.protection = n.protection || 'off';
   if (!['off','edges','selection'].includes(n.protection)) throw Error('Protección de detalles inválida.');
   for (const [key, lo, hi] of [['dpi', 36, 2400], ['lpi', 5, 150], ['angle', -180, 180],
@@ -135,7 +135,8 @@ function coverage(r, g, b, a, n) {
       opacity *= matte;
     }
   }
-  return {value: tone(adjustLevels(Math.pow(opacity, 1 / n.gamma) * n.strength / 100, n), n), matte};
+  const raw = Math.pow(opacity, 1 / n.gamma) * n.strength / 100;
+  return {value: tone(adjustLevels(raw, n), n), matte, raw};
 }
 // Removes isolated solid components, using 8-connectivity. Equivalent-area
 // diameter is a particle filter, NOT a guarantee of minimum line width.
@@ -174,7 +175,7 @@ async function processRGBA(input, width, height, options = {}, hook) {
   const region=n.statsRegion||{left:0,top:0,width,height};
   let regionScreenPixels=0,regionProtectedPixels=0;
   const radians = n.angle * Math.PI / 180, cos = Math.cos(radians), sin = Math.sin(radians), cell = n.dpi / n.lpi;
-  let inkPixels = 0;
+  let inkPixels = 0,solidPixels=0;
   const holeArea=n.halftone?minAreaFor(n.fillHolesMM,n.dpi):1,candidate=holeArea>1?new Uint8Array(width*height):null;
   for (let y = 0; y < height; y++) {
     if (hook && y % 32 === 0) await hook('screen', y / height);
@@ -182,6 +183,8 @@ async function processRGBA(input, width, height, options = {}, hook) {
       const i = (y * width + x) * 4;
       if (!input[i + 3]) continue;
       const c = coverage(input[i], input[i + 1], input[i + 2], input[i + 3], n);
+      const inRegion=x>=region.left&&x<region.left+region.width&&y>=region.top&&y<region.top+region.height;
+      if(n.measureSolid&&inRegion&&c.raw>=.5)solidPixels++;
       let protectedPixel=n.protection==='selection' && n.protectMask[y*width+x]>=128 && input[i+3]>=128;
       if(n.protection==='edges' && input[i+3]>=250 && c.value>0) {
         // Only hard source edges, not halftone edges. Exact knockout colors
@@ -192,7 +195,6 @@ async function processRGBA(input, width, height, options = {}, hook) {
           if(input[j+3]<128 || (input[j+3]>=250&&Math.hypot(input[i]-input[j],input[i+1]-input[j+1],input[i+2]-input[j+2])>=n.edgeContrast)){protectedPixel=true;break;}
         }
       }
-      const inRegion=x>=region.left&&x<region.left+region.width&&y>=region.top&&y<region.top+region.height;
       if(protectedPixel) {
         output[i]=input[i];output[i+1]=input[i+1];output[i+2]=input[i+2];output[i+3]=255;removedMask[y*width+x]=1;protectedMask[y*width+x]=255;inkPixels++;
         if(inRegion){regionScreenPixels++;regionProtectedPixels++;}continue;
@@ -226,7 +228,7 @@ async function processRGBA(input, width, height, options = {}, hook) {
   return {data: output,removedMask,protectedMask, width, height, stats: Object.assign({cellPX: cell, minArea,
     minDiameterMM: n.minDiameterMM, inkPixels: inkPixels - cleanup.removedPixels + filled,
     protectedPixels:regionProtectedPixels,regionInkPixels,regionProtectedPixels,regionScreenPixels,regionRemovedPixels:regionScreenPixels-regionInkPixels,
-    coveragePercent: (inkPixels - cleanup.removedPixels + filled) / (width * height) * 100}, candidate?{filledPixels:filled}:null, cleanup)};
+    coveragePercent: (inkPixels - cleanup.removedPixels + filled) / (width * height) * 100}, candidate?{filledPixels:filled}:null, n.measureSolid?{solidPixels}:null, cleanup)};
 }
 function composite(rgba, width, height, background) {
   const out = new Uint8Array(width * height * 3);

@@ -19,3 +19,24 @@ Referencia: 0,25 – 0,35 mm y 92 – 96 % son valores de partida razonables, no
 - La curva de ganancia es una aproximación lineal por tramos de tu medición.
 - El relleno de huecos usa 4-conexión para los poros y 8-conexión para la tinta, igual que la limpieza de islas.
 - La comprobación en Photoshop y el lavado físico siguen pendientes (`release-validation.json`).
+
+## Presets de fábrica (Preparar → Preset)
+Puntos de partida para trabajos comunes. Cada preset define forma, LPI, ángulo, niveles, color a eliminar, limpieza, poros y sólido; **no** cambia el tamaño, la curva de calibración, el color de prenda ni los costos de tinta. Tus recetas guardadas aparecen en el mismo selector («Receta · nombre»).
+
+| Preset | Qué hace |
+|---|---|
+| Camiseta negra · foto | Quita el negro, 30 LPI a 33°, rellena poros de 0,25 mm y sólido desde 95 % |
+| Camiseta negra · detalle fino | 40 LPI a 22,5°, limpieza baja; exige prueba de lavado |
+| Camiseta blanca · logo y color | Quita el blanco, 35 LPI a 45°, niveles neutros |
+| Vintage desgastado | 25 LPI a 45°, niveles que levantan el negro |
+| Líneas · estilo grabado | Trama de líneas a 45° |
+| Solo quitar fondo · sin trama | Elimina el color y deja el resto sólido |
+
+## Estimación de tinta (☰ → Costos de tinta)
+Muestra por pieza: ml de color y de blanca, porcentaje del área que cubre y, si el arte permite compararlo, cuánta tinta se ahorra frente a imprimir sin trama. Con precios por litro y por m² de film y polvo, añade el costo.
+
+- **Consumo inicial:** color 8 ml/m² y blanca 12 ml/m² a cobertura total. Son valores aproximados: mide el tuyo con el contador de tinta de la impresora (ml usados ÷ m² impresos) y escríbelo.
+- **Blanca:** se supone bajo cada píxel de color con la misma densidad.
+- **«Menos tinta que sin trama»:** compara con imprimir sólido el arte cuya cobertura es de al menos 50 % después de quitar el color.
+- **Lotes:** `reporte.csv` incluye `coveragePercent`, `colorML`, `whiteML` y `cost` por variante.
+- La estimación no sustituye al contador de la impresora ni incluye purgas, limpiezas ni desperdicio de film.

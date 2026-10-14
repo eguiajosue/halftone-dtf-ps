@@ -71,7 +71,7 @@ function haloFor(options){
 }
 async function processTiles(source,target,options,hook,protectStore){
   const n=validate(options),halo=haloFor(n),count=Math.ceil(source.width/TILE_SIZE)*Math.ceil(source.height/TILE_SIZE);
-  let done=0,inkPixels=0,removedPixels=0,protectedPixels=0,screenPixels=0,cellStats;
+  let done=0,inkPixels=0,removedPixels=0,protectedPixels=0,screenPixels=0,solidPixels=0,cellStats;
   for(const core of tiles(source.width,source.height)){
     if(hook)await hook('tile',done/count);
     const bounds=expand(core,source.width,source.height,halo),src=await source.read(bounds);
@@ -80,10 +80,10 @@ async function processTiles(source,target,options,hook,protectStore){
     const result=await processRGBA(src.data,src.width,src.height,Object.assign({},n,{originX:bounds.left,originY:bounds.top,protectMask:protect,statsRegion:region}),hook);
     if(hook)await hook('tile',done/count);
     await target.put(core,cut(result.data,src.width,region));
-    screenPixels+=result.stats.regionScreenPixels;inkPixels+=result.stats.regionInkPixels;removedPixels+=result.stats.regionRemovedPixels;protectedPixels+=result.stats.regionProtectedPixels;cellStats=result.stats;done++;
+    screenPixels+=result.stats.regionScreenPixels;inkPixels+=result.stats.regionInkPixels;removedPixels+=result.stats.regionRemovedPixels;protectedPixels+=result.stats.regionProtectedPixels;solidPixels+=result.stats.solidPixels||0;cellStats=result.stats;done++;
   }
   if(hook)await hook('tile',1);
-  return {cellPX:cellStats.cellPX,minArea:cellStats.minArea,minDiameterMM:cellStats.minDiameterMM,inkPixels,removedPixels,protectedPixels,screenPixels,removedComponents:null,coveragePercent:inkPixels/(source.width*source.height)*100};
+  return {cellPX:cellStats.cellPX,minArea:cellStats.minArea,minDiameterMM:cellStats.minDiameterMM,inkPixels,removedPixels,protectedPixels,screenPixels,removedComponents:null,coveragePercent:inkPixels/(source.width*source.height)*100,...(n.measureSolid?{solidPixels}:null)};
 }
 module.exports={TILE_SIZE,RAM_PIXELS,tiles,expand,cut,MemoryStore,DiskStore,createDiskStore,haloFor,processTiles};
 

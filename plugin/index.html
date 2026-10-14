@@ -24,6 +24,7 @@
       <section id="toolsPanel" class="hidden">
         <sp-action-button size="s" quiet id="openBatch">Procesar lote</sp-action-button>
         <sp-action-button size="s" quiet id="toggleCalibration">Calibración de punto</sp-action-button>
+        <sp-action-button size="s" quiet id="toggleInk">Costos de tinta</sp-action-button>
         <sp-action-button size="s" quiet id="toggleRecipes">Recetas y perfiles</sp-action-button>
         <sp-action-button size="s" quiet id="toggleHelp">Ayuda y diagnóstico</sp-action-button>
         <sp-action-button size="s" quiet id="toggleUpdates">Versión y actualizaciones</sp-action-button>
@@ -66,6 +67,25 @@
           <sp-action-button size="s" quiet id="openUpdate">Abrir releases</sp-action-button>
         </div>
         <sp-action-button size="s" quiet id="updaterGuide">Instalación y actualización automática</sp-action-button>
+      </section>
+      <section class="hidden" id="inkPanel">
+        <h2>Tinta y costos por pieza</h2>
+        <p class="hint">Consumo a cobertura total y precios. Los valores iniciales son aproximados: calibra el consumo con el contador de tinta de tu impresora (ml usados ÷ m² impresos). Deja los precios en 0 para ver solo los mililitros.</p>
+        <div class="row">
+          <label>Color · ml/m²<input id="inkColorMLm2" type="number" min="0" max="1000" step="0.1" value="8">
+          </label>
+          <label>Blanca · ml/m²<input id="inkWhiteMLm2" type="number" min="0" max="1000" step="0.1" value="12">
+          </label>
+        </div>
+        <div class="row">
+          <label>Color · precio/litro<input id="inkColorPriceL" type="number" min="0" max="100000" step="0.01" value="0">
+          </label>
+          <label>Blanca · precio/litro<input id="inkWhitePriceL" type="number" min="0" max="100000" step="0.01" value="0">
+          </label>
+        </div>
+        <label>Film y polvo · precio/m²<input id="filmPriceM2" type="number" min="0" max="100000" step="0.01" value="0">
+        </label>
+        <p class="hint">Supone tinta blanca bajo cada punto de color. «Menos tinta que sin trama» compara con imprimir sólido el arte con cobertura de al menos 50 %. Moneda: la que uses al escribir los precios.</p>
       </section>
       <section class="hidden" id="calibrationPanel">
         <h2>Ganancia de punto</h2>
@@ -139,6 +159,13 @@
       </section>
       <div id="prepareStage">
         <div class="stage-content" id="prepareContent">
+        <section class="prepare-card" id="presetCard">
+          <label>Preset<select id="presetSelect">
+              <option value="">Personalizado</option>
+            </select>
+          </label>
+          <p class="hint" id="presetNote"></p>
+        </section>
         <section class="prepare-card">
           <div class="section-heading"><span class="section-index">01</span><h2>Tamaño de impresión</h2></div>
           <p class="hint" id="currentSizeInfo">Abre un documento para empezar.</p>
@@ -455,6 +482,7 @@
         </div>
         <div class="stage-actions">
         <p class="tag" id="liveState">Vista y lienzo sincronizados</p>
+        <p class="hint" id="inkEstimate"></p>
         <div class="row">
           <sp-button size="m" variant="secondary" treatment="outline" id="cancel">Cancelar</sp-button>
           <sp-button size="m" variant="accent" treatment="fill" class="primary" id="apply">Aplicar</sp-button>

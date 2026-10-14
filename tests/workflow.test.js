@@ -190,3 +190,18 @@ test('dot-gain calibration and shadow options reach the engine; invalid pairs ar
  assert.equal(r.options.gainPoints,'10:14,30:41');assert.equal(r.options.fillHolesMM,.25);
  assert.throws(()=>recipes.entry({name:'x',options:{gainPoints:'30:20,50:10'}}),/Calibración/);
 });
+
+test('presets apply a complete look, keep size, calibration and costs, and ink estimate follows the result',async()=>{
+ const {elements:e,calls}=fixture();
+ assert.ok(e.presetSelect.children.length>=7,'built-in presets listed');assert.equal(e.presetSelect.children[0].value,'');
+ e.gainPoints.value='30:41';e.widthCM.value='20';e.inkColorPriceL.value='90';
+ e.presetSelect.value='preset:dark-fine';await e.presetSelect.emit('change');
+ assert.equal(e.lpi.value,40);assert.equal(e.angle.value,22.5);assert.equal(e.cleanup.value,'low');assert.equal(e.minDiameterMM.value,.12);
+ assert.equal(e.gainPoints.value,'30:41');assert.equal(e.widthCM.value,'20');assert.equal(e.inkColorPriceL.value,'90');
+ assert.match(e.presetNote.textContent,/40 LPI/);assert.match(e.status.textContent,/Preset aplicado/);
+ e.presetSelect.value='preset:light-logo';await e.presetSelect.emit('change');assert.equal(e.key.value,'#ffffff');assert.equal(e.lpi.value,35);
+ await e.next.emit('click');assert.equal(calls[0][2].lpi,35);assert.equal(calls[0][2].key,'#ffffff');
+ assert.match(e.inkEstimate.textContent,/^Tinta por pieza · color [\d.]+ ml · blanca [\d.]+ ml · cubre 50 % del área · costo /);
+ e.inkWhitePriceL.value='0';e.inkColorPriceL.value='0';await e.inkColorPriceL.emit('input');assert.doesNotMatch(e.inkEstimate.textContent,/costo/);
+ await e.apply.emit('click');assert.match(e.resultInfo.textContent,/Tinta por pieza/);
+});
