@@ -6,6 +6,8 @@ Panel en español para preparar arte de color con huecos transparentes para DTF.
 
 **0.6.4:** controles reales de **Adobe Spectrum Web Components**, con wrappers oficiales para UXP. Panel minimalista: preparación numerada, colores con HEX visible, sliders amplios, opciones avanzadas plegables y acciones siempre visibles. Conserva las optimizaciones de rendimiento de 0.6.3. [Diseño, compatibilidad y pruebas](docs/INTERFAZ-SPECTRUM-0.6.4.md).
 
+**Edición en vivo como DTPrep (sin publicar):** el documento de trabajo usa arte con máscara de capa y un relleno con el color de prenda; los ajustes reescriben solo la máscara y las vistas cambian capas sin escribir píxeles. [Auditoría y mediciones](docs/AUDITORIA-DTPREP.md).
+
 ![Preparación](docs/UI-PREPARAR-0.6.4.png)
 ![Ajustes](docs/UI-AJUSTAR-0.6.4.png)
 

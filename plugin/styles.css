@@ -63,3 +63,13 @@ sp-slider{width:100%;margin:3px 0 0;}#levelsControls h2{margin:0;}
 #toolsPanel,#helpPanel,#recipesPanel,#updatesPanel{max-height:45vh;overflow:auto;flex:none;}
 #status{flex:none;max-height:42px;overflow:auto;margin:6px 0 0;}footer{flex:none;margin-top:5px;}
 sp-action-button{--mod-actionbutton-content-color-default-selected:#fff;--mod-actionbutton-content-color-hover-selected:#fff;--mod-actionbutton-content-color-down-selected:#fff;--mod-actionbutton-content-color-focus-selected:#fff;--mod-actionbutton-background-color-default-selected:#414b45;--mod-actionbutton-background-color-hover-selected:#4a564e;}
+
+/* DTPrep-style compact levels: value and slider share one row. */
+#levelsControls .level{display:flex;align-items:center;margin-bottom:6px;}
+#levelsControls .level label{width:44%;flex:none;margin-right:10px;}
+#levelsControls .level input{width:54px;height:26px;}
+#levelsControls sp-slider{flex:1;margin:0;}
+#currentSizeInfo{margin:-4px 0 10px;}#lpcInfo{margin:-4px 0 8px;}
+#outputControls h2{display:none;}#levelsControls{padding-top:8px;}#levelsControls .section-heading{margin-bottom:8px;}
+#editContent .control-caption{margin:2px 0 4px;}#editContent .color-core{padding-bottom:2px;}#editContent .color-row{margin-bottom:4px;}
+#editContent .compare-toggle{margin-bottom:4px;}#cleanupControls{padding-top:8px;}#cleanupControls h2{margin-bottom:6px;}

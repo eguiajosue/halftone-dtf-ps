@@ -1,5 +1,13 @@
 # Historial
 
+## Sin publicar — edición en vivo como DTPrep
+
+Documento de trabajo con dos capas, como en la referencia DTPrep: arte con **máscara de capa** (la trama vive en la máscara) y relleno con el color de prenda debajo. Mover niveles, trama o limpieza escribe solo la máscara de 1 canal; el RGB se reescribe solo si cambian las opciones de color. Las vistas Prenda / Alfa / Original / Antes sobre prenda cambian visibilidad y máscara sin escribir píxeles. Aplicar deja una única capa con alfa 0/255, igual al motor completo. Si Photoshop rechaza una operación nativa, la sesión vuelve sola al método anterior.
+
+Motor en caché (`plugin/live-render.js`): cobertura y umbrales en 16 bits por píxel, niveles en tabla y limpieza de partículas acotada con las mismas islas eliminadas. A 13 MP, un ajuste baja de ~2,1 s a ~0,23 s con limpieza Normal (~0,03 s sin limpieza), medido en CPU. Espera de 40 ms antes de recalcular.
+
+Interfaz: tamaño actual a 300 ppp y equivalencia en LPC en Preparar; niveles, salida y sombras visibles en una fila cada uno; vista Alfa; lotes en el menú ☰. 137 pruebas JavaScript. Detalles y pendientes nativos en `docs/AUDITORIA-DTPREP.md`.
+
 ## 0.6.4 RC — 2026-10-09
 
 Integra Adobe Spectrum Web Components mediante wrappers oficiales de UXP: botones, acciones, casillas y campos HEX. Conserva el slider nativo y los campos numéricos/selectores compatibles con Photoshop 25. Preparación numerada, navegación por etapas, color y HEX visibles, vistas y limpieza segmentadas y acciones fijadas fuera del área desplazable. Opciones avanzadas accesibles a demanda; funciones de tallas, protección y lotes conservadas.

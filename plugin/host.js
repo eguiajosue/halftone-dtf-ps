@@ -2,12 +2,14 @@
 const {app,imaging,core,constants,action}=require('photoshop');
 const {processRGBA,validate}=require('./engine');
 const sizing=require('./sizing');
-const {viewRGB}=require('./views');
+const {viewRGB,backgroundColor}=require('./views');
+const {LiveRenderer,compose,colorKey}=require('./live-render');
 const tileEngine=require('./tiles');
 const diagnostics=require('./diagnostics');
 const approvedSizes=new Map();
 const PROFILE='sRGB IEC61966-2.1';
 const workspace=require('./workspace').createWorkspace({app,core,imaging,readRGBA,profile:PROFILE});
+const native=require('./native-layers').createNativeLayers({action,imaging,constants});
 const MAX_TILE_SOURCE_PIXELS=16000000;
 function printPlan(doc,options){const f=options.frame||{left:0,top:0,width:doc.width,height:doc.height};return {...sizing.plan(f.width,f.height,doc.resolution,options),frame:f};}
 function cancelError(message){const error=Error(message);error.cancelled=true;return error;}
@@ -213,7 +215,7 @@ function sessionDocument(session) {
   const layer=Array.from(doc.layers).find(l=>l.id===session.layerID);
   if(!layer)throw Error('La capa de trabajo fue eliminada. Vuelve a la preparación.');
   if(layer.visible===false||(layer.opacity!=null&&layer.opacity!==100)||(layer.blendMode!=null&&constants.BlendMode&&layer.blendMode!==constants.BlendMode.NORMAL))throw Error('La capa de trabajo fue modificada. Restablece visibilidad, opacidad 100% y mezcla Normal.');
-  if(Array.from(doc.layers).some(l=>l.id!==session.layerID&&l.id!==session.workspaceLayerID))throw Error('El documento de trabajo tiene capas adicionales. Vuelve a preparar el original.');
+  if(Array.from(doc.layers).some(l=>l.id!==session.layerID&&l.id!==session.workspaceLayerID&&l.id!==session.fillLayerID))throw Error('El documento de trabajo tiene capas adicionales. Vuelve a preparar el original.');
   return {doc,layer};
 }
 function cropBuffer(data,width,crop) {
@@ -264,6 +266,11 @@ async function beginSession(source,options,onProgress=()=>{}) {
     return {name:doc.name,size,data,sourceID:doc.id,sourceWidth:doc.width,sourceHeight:doc.height};
   },{commandName:'Preparar tamaño DTF'});
   if(options.protection==='selection')await captureProtection(snapshot);
+  let nativeWarning=null;
+  if(native.available()&&options.nativeMask!==false){
+    try{return await beginNativeSession(snapshot,options,onProgress,started);}
+    catch(e){if(e.cancelled)throw e;nativeWarning='La edición con máscara nativa no está disponible ('+(e.message||e)+'); se usa la actualización completa.';}
+  }
   const result=await processRGBA(snapshot.data,snapshot.size.width,snapshot.size.height,Object.assign({},options,{dpi:300,originX:0,originY:0,protectMask:snapshot.protectStore?snapshot.protectStore.data:null}),async(phase,p)=>{
     onProgress(phase,p);await new Promise(r=>setTimeout(r,0));
   });
@@ -286,7 +293,7 @@ async function beginSession(source,options,onProgress=()=>{}) {
   },{commandName:'Abrir edición Halftone DTF'});
   // The first stage transition already displays the processed result.
   const crop=cropAtFocus(session.size,{x:options.focusX==null?50:options.focusX,y:options.focusY==null?50:options.focusY});
-  session.metrics={initialMs:Date.now()-started};
+  session.metrics={initialMs:Date.now()-started};session.nativeWarning=nativeWarning;
   session.preview={src:cropBuffer(session.source,session.size.width,crop),result:{...cropBuffer(result.data,session.size.width,crop),removedMask:tileEngine.cut(result.removedMask,session.size.width,crop,1),protectedMask:result.protectedMask?tileEngine.cut(result.protectedMask,session.size.width,crop,1):null},size:session.size,stats:result.stats,exact:true};
   return session;
 }
@@ -294,6 +301,7 @@ async function updateSession(session,options,ctx,onPreview=()=>{}) {
   const started=Date.now();
   await workspace.wait(session);ctx.check();
   if(session.sourceStore)return updateTiledSession(session,options,ctx,onPreview);
+  if(session.native)return updateNativeSession(session,options,ctx,onPreview);
   ctx.check();await assertLayerState(session);sessionDocument(session);
   const n=validate(Object.assign({},options,{dpi:300,originX:0,originY:0}));
   const crop=cropAtFocus(session.size,{x:options.focusX,y:options.focusY});
@@ -325,6 +333,7 @@ async function cancelSession(session) {
 async function releaseSession(session) {
   await workspace.clear(session);
   session.closed=true;session.source=null;session.preview=null;
+  if(session.renderer)session.renderer.dispose();session.renderer=null;session.color=null;session.mask=null;
   for(const id of ['sourceStore','protectStore'])if(session[id]){await discardStore(session[id],session);session[id]=null;}
 }
 async function discardStore(store,session){
@@ -462,7 +471,147 @@ async function closeBatchSource(source){
   if(!source.owned)return;
   await core.executeAsModal(async()=>{const doc=Array.from(app.documents).find(d=>d.id===source.documentID);if(doc)doc.closeWithoutSaving();},{commandName:'Cerrar origen del lote'});
 }
-module.exports={workspaceView:workspace.show,clearWorkspace:workspace.clear,info,convertCurrent,validateBatchOutput,overview,beginFromSnapshot,trimSourceBounds,preview,renderPreview,apply,exportPNG,beginSession,updateSession,cancelSession,releaseSession,captureProtection,openBatchSource,closeBatchSource};
+// ── Native live session: art layer + user mask + garment fill (as DTPrep) ──
+const NATIVE_VIEWS={garment:{fill:true,mask:true},transparent:{fill:false,mask:true},original:{fill:false,mask:false},beforeGarment:{fill:true,mask:false}};
+const tick=()=>new Promise(r=>setTimeout(r,0));
+function composedStore(session){
+  const {width,height}=session.size;
+  return {width,height,read:async crop=>({data:compose(session.color,session.mask,width,crop),width:crop.width,height:crop.height})};
+}
+function layerTitle(n){return `DTF ${n.shape||'round'} · ${n.lpi||35} LPI · ${n.angle==null?45:n.angle}° · 300 ppp`;}
+// Protection modes keep the complete engine. The art layer takes the printed
+// RGB where it prints and the regular color elsewhere (Original view).
+async function renderProtected(session,n,hook){
+  const {width,height}=session.size;
+  const result=await processRGBA(session.source,width,height,{...n,protectMask:session.protectStore?session.protectStore.data:null},hook);
+  await session.renderer.color(n,hook,session.color);
+  for(let p=0;p<width*height;p++){
+    const a=result.data[p*4+3];session.mask[p]=a;
+    if(a){session.color[p*4]=result.data[p*4];session.color[p*4+1]=result.data[p*4+1];session.color[p*4+2]=result.data[p*4+2];}
+  }
+  return result.stats;
+}
+async function renderNative(session,n,hook){
+  if(n.protection!=='off'){session.rgbKey=null;return {stats:await renderProtected(session,n,hook),colorChanged:true,key:null};}
+  const {stats}=await session.renderer.mask(n,hook,session.mask),key=colorKey(n);
+  if(key===session.rgbKey)return {stats,colorChanged:false,key};
+  // Invalidate first: a superseded job must not leave stale RGB marked current.
+  session.rgbKey=null;await session.renderer.color(n,hook,session.color);
+  return {stats,colorChanged:true,key};
+}
+async function writeNative(session,colorChanged,n,check=()=>{}){
+  const {width,height}=session.size;
+  await core.executeAsModal(async context=>{
+    check();if(context.isCancelled)throw cancelError('Actualización cancelada.');
+    const {doc,layer}=sessionDocument(session);await assertLayerState(session);
+    if(colorChanged){
+      let im;
+      try{
+        im=await imaging.createImageDataFromBuffer(session.color,{width,height,components:4,colorSpace:'RGB',colorProfile:PROFILE});check();
+        await imaging.putPixels({documentID:doc.id,layerID:layer.id,imageData:im,replace:true,targetBounds:{left:0,top:0}});
+      }finally{if(im)im.dispose();}
+    }
+    check();await native.putMask(doc.id,layer.id,session.mask,width,height);
+    layer.name='Arte · '+layerTitle(n);
+  },{commandName:'Actualizar Halftone DTF'});
+}
+async function beginNativeSession(snapshot,options,onProgress,started){
+  const {width,height}=snapshot.size,n=validate(Object.assign({},options,{dpi:300,originX:0,originY:0}));
+  const session={size:snapshot.size,source:snapshot.data,sourceID:snapshot.sourceID,sourceWidth:snapshot.sourceWidth,sourceHeight:snapshot.sourceHeight,
+    protectStore:snapshot.protectStore,closed:false,memoryMode:'ram',native:true,renderer:new LiveRenderer(snapshot.data,width,height),
+    color:new Uint8Array(width*height*4),mask:new Uint8Array(width*height),rgbKey:null,fillLayerID:null};
+  const hook=async(phase,p)=>{onProgress(phase,p);await tick();};
+  const rendered=await renderNative(session,n,hook);session.stats=rendered.stats;
+  const garment=backgroundColor(options);
+  await core.executeAsModal(async context=>{
+    onProgress('write',0);
+    if(context.isCancelled)throw cancelError('Preparación cancelada.');
+    const doc=await app.createDocument({name:'DTF · '+snapshot.name,width,height,resolution:300,mode:constants.NewDocumentMode.RGB,fill:constants.DocumentFill.TRANSPARENT,depth:8,profile:PROFILE});
+    await context.hostControl.registerAutoCloseDocument(doc.id);
+    const layer=doc.layers[0]||await doc.createPixelLayer();let im;
+    try{
+      im=await imaging.createImageDataFromBuffer(session.color,{width,height,components:4,colorSpace:'RGB',colorProfile:PROFILE});
+      await imaging.putPixels({documentID:doc.id,layerID:layer.id,imageData:im,replace:true,targetBounds:{left:0,top:0}});
+    }finally{if(im)im.dispose();}
+    onProgress('write',.5);
+    await native.addMask(doc.id,layer.id);
+    await native.putMask(doc.id,layer.id,session.mask,width,height);
+    const fill=await native.createFill(doc,layer.id,garment);
+    layer.name='Arte · '+layerTitle(n);
+    Object.assign(session,{documentID:doc.id,layerID:layer.id,fillLayerID:fill.id,fillHex:garment.join(','),view:{fill:true,mask:true},lastOptions:n});
+    approvedSizes.set(doc.id,{width:doc.width,height:doc.height});
+    await context.hostControl.unregisterAutoCloseDocument(doc.id);onProgress('write',1);
+  },{commandName:'Abrir edición Halftone DTF'});
+  session.rgbKey=rendered.key;
+  const crop=cropAtFocus(session.size,{x:options.focusX==null?50:options.focusX,y:options.focusY==null?50:options.focusY});
+  session.metrics={initialMs:Date.now()-started};
+  session.preview=nativePreview(session,crop);
+  return session;
+}
+function nativePreview(session,crop){
+  const {width}=session.size;
+  return {src:cropBuffer(session.source,width,crop),result:{data:compose(session.color,session.mask,width,crop),width:crop.width,height:crop.height,
+    removedMask:new Uint8Array(crop.width*crop.height),protectedMask:null},size:session.size,stats:session.stats,exact:true};
+}
+async function updateNativeSession(session,options,ctx,onPreview){
+  const started=Date.now();
+  await workspace.wait(session);ctx.check();sessionDocument(session);
+  const n=validate(Object.assign({},options,{dpi:300,originX:0,originY:0}));
+  const hook=async()=>{ctx.check();await tick();ctx.check();};
+  const rendered=await renderNative(session,n,hook);ctx.check();
+  await writeNative(session,rendered.colorChanged,n,ctx.check);
+  session.rgbKey=rendered.key;session.stats=rendered.stats;session.overview=null;session.lastOptions=n;
+  session.metrics={...session.metrics,processingAndWriteMs:Date.now()-started};
+  const crop=cropAtFocus(session.size,{x:options.focusX,y:options.focusY});
+  // The inspector shows an exact crop (removed/protected pixels); the canvas
+  // already holds the full result.
+  let cached=nativePreview(session,crop);
+  if(options.detailPreview!==false){const detail=await detailCrop(session,crop,n,hook);cached={...detail,size:session.size,stats:session.stats,exact:true};}
+  session.preview=cached;const presenting=Date.now();
+  await onPreview(cached,ctx);ctx.check();
+  session.metrics={...session.metrics,presentationMs:Date.now()-presenting,updateMs:Date.now()-started};
+}
+// Views are layer states, not pixels. Comparison and mask still render a
+// temporary layer from the composed result.
+async function workspaceView(session,mode,options,check=()=>{},resultStore=null){
+  if(!session||!session.native)return workspace.show(session,mode,options,check,resultStore);
+  const plan=NATIVE_VIEWS[mode];
+  if(!plan)return workspace.show(session,mode,options,check,composedStore(session));
+  if(session.workspaceLayerID!=null)await workspace.clear(session);
+  check();
+  const garment=backgroundColor(options),hex=garment.join(',');
+  if(session.view&&session.view.fill===plan.fill&&session.view.mask===plan.mask&&session.fillHex===hex)return;
+  await core.executeAsModal(async()=>{
+    check();const {doc,layer}=sessionDocument(session);app.activeDocument=doc;
+    const fill=native.findLayer(doc,session.fillLayerID);
+    if(hex!==session.fillHex){await native.setFillColor(doc.id,session.fillLayerID,layer.id,garment);session.fillHex=hex;}
+    if(fill&&fill.visible!==plan.fill)fill.visible=plan.fill;
+    if(!session.view||session.view.mask!==plan.mask)await native.setMaskEnabled(doc.id,layer.id,plan.mask);
+    session.view={...plan};session.workspaceMode=mode;
+  },{commandName:'Mostrar vista DTF'});
+}
+// Apply: keep a single printable layer with binary alpha. The fill and the
+// mask are removed; the composed result replaces the art layer pixels.
+async function clearWorkspace(session){
+  await workspace.clear(session);
+  if(!session.native)return;
+  const {width,height}=session.size;
+  await core.executeAsModal(async()=>{
+    const {doc,layer}=sessionDocument(session),fill=native.findLayer(doc,session.fillLayerID);
+    if(fill)await fill.delete();session.fillLayerID=null;
+    // If the mask cannot be deleted it stays binary and enabled: the composite
+    // is still the same. Exported PNG validation reads that composite.
+    try{await native.deleteMask(doc.id,layer.id);}catch(e){try{await native.setMaskEnabled(doc.id,layer.id,true);}catch(_){} }
+    let im;
+    try{
+      im=await imaging.createImageDataFromBuffer(compose(session.color,session.mask,width),{width,height,components:4,colorSpace:'RGB',colorProfile:PROFILE});
+      await imaging.putPixels({documentID:doc.id,layerID:layer.id,imageData:im,replace:true,targetBounds:{left:0,top:0}});
+    }finally{if(im)im.dispose();}
+    layer.name=layerTitle(session.lastOptions||{});
+  },{commandName:'Conservar resultado DTF'});
+  session.native=false;
+}
+module.exports={workspaceView,clearWorkspace,info,convertCurrent,validateBatchOutput,overview,beginFromSnapshot,trimSourceBounds,preview,renderPreview,apply,exportPNG,beginSession,updateSession,cancelSession,releaseSession,captureProtection,openBatchSource,closeBatchSource};
 
 async function convertCurrent(){
  return core.executeAsModal(async context=>{
@@ -480,6 +629,7 @@ async function overview(session,check=()=>{}){
  await workspace.wait(session);check();if(session.overview)return session.overview;const {thumbnail}=require('./overview');
  const store=session.sourceStore||new tileEngine.MemoryStore(session.size.width,session.size.height,4,session.source);
  const src=await thumbnail(store,360,check),{doc,layer}=sessionDocument(session);
+ if(session.native){const result=await thumbnail(composedStore(session),360,check);check();session.overview={src,result,size:session.size,stats:session.stats,exact:true,overview:true};return session.overview;}
  const output={width:doc.width,height:doc.height,read:crop=>readRGBA(doc,layer.id,{left:crop.left,top:crop.top,right:crop.left+crop.width,bottom:crop.top+crop.height})};
  // Native bounds can be trimmed. Return an aligned RGBA tile for the sampler.
  const aligned={...output,read:async crop=>{const native=await output.read(crop),data=new Uint8Array(crop.width*crop.height*4);
@@ -516,7 +666,7 @@ async function trimSourceBounds(source,documentID,layerID,progress=()=>{}){
 async function assertLayerState(session){
  const {doc,layer}=sessionDocument(session);
  if(action&&action.batchPlay){const [d]=await action.batchPlay([{_obj:'get',_target:[{_ref:'layer',_id:layer.id},{_ref:'document',_id:doc.id}]}],{});
- if(d.hasUserMask||d.hasVectorMask||d.layerEffects)throw Error('La capa de trabajo tiene máscara o efectos añadidos. Vuelve a preparar el original.');}
+ if((d.hasUserMask&&!session.native)||d.hasVectorMask||d.layerEffects)throw Error('La capa de trabajo tiene máscara o efectos añadidos. Vuelve a preparar el original.');}
 }
 
 async function detailCrop(session,crop,options,hook){

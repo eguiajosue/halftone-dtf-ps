@@ -139,8 +139,8 @@ test('four view buttons use the Photoshop workspace without retriggering screeni
 test('cleanup segments preserve calibrated thresholds, version and stage remain current',async()=>{
  const {elements:e,calls}=fixture();assert.equal(e.footerVersion.textContent,require('../plugin/manifest.json').version+' RC');
  await e.next.emit('click');assert.equal(e.stageBadge.textContent,'Ajustar');
- assert.equal(e.outputControls.className,'hidden');await e.toggleOutput.emit('click');assert.equal(e.outputControls.className,'');
- e.outputWhite.value=180;await e.outputWhite.emit('input');await e.toggleOutput.emit('click');assert.equal(e.outputWhite.value,180);
+ assert.equal(e.outputControls.className,'');
+ e.outputWhite.value=180;await e.outputWhite.emit('input');assert.equal(e.outputWhite.value,180);
  await e.cleanupHigh.emit('click');assert.equal(e.cleanup.value,'high');assert.equal(e.minDiameterMM.value,require('../plugin/engine').LEVELS.high.minDiameterMM);
  assert.equal(e.cleanupHigh.className,'active');assert.equal(e.cleanupStandard.className,'');
  await e.apply.emit('click');assert.equal(calls.find(c=>c[0]==='update')[1].detailPreview,false);assert.equal(e.stageBadge.textContent,'Exportar');

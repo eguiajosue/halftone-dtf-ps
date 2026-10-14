@@ -214,4 +214,4 @@ function composite(rgba, width, height, background) {
   }
   return out;
 }
-module.exports = {SHAPES, LEVELS, hexRGB, validate, adjustLevels, threshold, processRGBA, composite, boostedColor};
+module.exports = {SHAPES, LEVELS, hexRGB, validate, adjustLevels, threshold, coverage, cleanedEdge, processRGBA, composite, boostedColor};

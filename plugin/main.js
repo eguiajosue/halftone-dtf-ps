@@ -41,7 +41,7 @@ function syncSwatches(){
   $('keyHexCaption').textContent=key.toUpperCase();$('backgroundHexCaption').textContent=bg.toUpperCase();
  }catch(_){}
 }
-function syncScreen(){for(const id of ['lpi','angle','shape'])$(id+'Edit').value=$(id).value;$('halftoneEdit').checked=$('halftone').checked;$('editScreen').textContent='Trama · '+$('lpi').value+' LPI · '+$('angle').value+'°';}
+function syncScreen(){const lpi=Number($('lpi').value);if(Number.isFinite(lpi)&&lpi>0)$('lpcInfo').textContent=(lpi/2.54).toFixed(1)+' líneas por cm (LPC)';for(const id of ['lpi','angle','shape'])$(id+'Edit').value=$(id).value;$('halftoneEdit').checked=$('halftone').checked;$('editScreen').textContent='Trama · '+$('lpi').value+' LPI · '+$('angle').value+'°';}
 function syncSliders(){for(const id of [...Object.keys(levels),'shadowBoost','colorBoost'])$(id+'Slider').value=Number($(id).value);}
 function ensureEditDefaults(){
   if(!['original','garment','beforeGarment','compare','transparent','mask','removed','protection'].includes($('viewMode').value))$('viewMode').value='garment';
@@ -107,6 +107,7 @@ function updateSizeInfo(){
   if(!sourceInfo)return;
   const p=sizing.plan(sourceInfo.width,sourceInfo.height,sourceInfo.dpi,settings());
   $('pixelInfo').textContent=`${p.widthCM.toFixed(2)} × ${p.heightCM.toFixed(2)} cm · ${p.width} × ${p.height} px · 300 ppp`;
+  $('currentSizeInfo').textContent=`Tamaño actual a 300 ppp: ${fromCM(sourceInfo.width/300*2.54).toFixed(2)} × ${fromCM(sourceInfo.height/300*2.54).toFixed(2)} ${$('units').value}`;
   const resources=diagnostics.preflight(p,settings(),settings().diskBudgetGB).resources;
   $('resourceInfo').textContent=`${resources.megapixels.toFixed(1)} MP · ${resources.disk?'caché en disco':'memoria RAM'} · disco estimado ${(resources.recommendedDiskBytes/1e9).toFixed(2)} GB + scratch de Photoshop`;
   $('upscaleInfo').textContent=p.upscaled?'Se ampliará el origen. El remuestreo no recupera detalle perdido.':'El tamaño se prepara antes de tramar.';
@@ -114,6 +115,7 @@ function updateSizeInfo(){
 function adoptSource(){
   const next=host.info();sourceInfo=next;
   $('sourceInfo').textContent=`${next.name} · ${next.width} × ${next.height} px · ${next.dpi} ppp de origen`;
+  $('currentSizeInfo').textContent=`Tamaño actual a 300 ppp: ${fromCM(next.width/300*2.54).toFixed(2)} × ${fromCM(next.height/300*2.54).toFixed(2)} ${$('units').value}`;
   if(!Number.isFinite(Number($('widthCM').value))||Number($('widthCM').value)<=0)$('widthCM').value=fromCM(next.widthCM).toFixed(2);
   syncSize('width',canonicalSize?canonicalSize.widthCM:toCM(Number($('widthCM').value)));controls();save();status('Define el tamaño final y el color a eliminar.');
 }
@@ -154,7 +156,7 @@ function queue(){
   paintRevision++;live.request(settings());$('liveState').textContent='Actualizando automáticamente…';
 }
 function createLive(){
-  live=new LiveController((o,ctx)=>host.updateSession(session,{...o,detailPreview:$('inspectorPanel').className!=='hidden'},ctx,paint),{
+  live=new LiveController((o,ctx)=>host.updateSession(session,{...o,detailPreview:$('inspectorPanel').className!=='hidden'},ctx,paint),{delay:40,
     onError:e=>{if(stage==='edit')status('Corrige el ajuste o vuelve a intentarlo: '+(e.message||e));},
     onState:s=>{if(stage==='edit')$('liveState').textContent={working:'Procesando · puedes seguir ajustando',idle:'Vista y lienzo sincronizados',error:'No se pudo completar la última actualización'}[s];}
   });
@@ -248,6 +250,7 @@ function init(){
     session.metrics={initialMs:Date.now()-started};
     outputID=null;syncColor();showStage('edit');$('sessionInfo').textContent=summary(session)+(session.memoryMode==='disk'?' Procesamiento con caché en disco.':' Procesamiento en memoria RAM.');
     createLive();await paint(session.preview);$('liveState').textContent='Vista y lienzo sincronizados';
+    if(session.nativeWarning)status(session.nativeWarning);
   }));
   $('back').addEventListener('click',()=>action(discard));$('cancel').addEventListener('click',()=>action(discard));
   $('apply').addEventListener('click',()=>action(async()=>{

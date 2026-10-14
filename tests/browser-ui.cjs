@@ -58,8 +58,9 @@ async function browserExecutable(){
  await page.locator('#viewTransparent').click();assert.equal(await page.locator('#viewTransparent').evaluate(el=>el.selected),true);
  await page.locator('#viewGarment').click();
  await page.locator('#cleanupHigh').click();assert.equal(await page.locator('#cleanup').inputValue(),'high');
- await page.locator('#toggleOutput').click();await page.locator('#outputWhite').fill('160');await page.locator('#outputWhite').dispatchEvent('input');
- await page.locator('#toggleOutput').click();assert.equal(await page.locator('#outputWhite').inputValue(),'160');
+ await page.locator('#outputWhite').fill('160');await page.locator('#outputWhite').dispatchEvent('input');
+ assert.equal(await page.locator('#outputWhite').inputValue(),'160');
+ assert.match(await page.locator('#lpcInfo').innerText(),/LPC/);
  // Test real SWC shadow-input event propagation and HEX value synchronization.
  await page.locator('#tabColor').click();const input=page.locator('#keyEdit input');await input.fill('#334455');await input.dispatchEvent('input');
  assert.equal(await page.locator('#key').evaluate(el=>el.value),'#334455');assert.equal(await page.locator('#keyHexCaption').innerText(),'#334455');
