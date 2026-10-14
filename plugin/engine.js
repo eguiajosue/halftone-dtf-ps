@@ -2,6 +2,7 @@
  * Raster coordinates use pixel centers, globally anchored to document origin.
  * No interpolation or antialiasing is performed on final alpha. */
 'use strict';
+const gainLib=require('./gain'),{fillHoles,minAreaFor}=require('./holes');
 const SHAPES = ['round', 'ellipse', 'square', 'diamond', 'line'];
 const LEVELS = {
   none: {alphaFloor: 0, minDiameterMM: 0},
@@ -20,14 +21,14 @@ function validate(o) {
     knockout: true, key: '#000000', tolerance: 2, softness: 35, recover: false,
     strength: 100, gamma: 1, inputBlack: 0, inputMidtone: 1, inputWhite: 255,
     outputBlack: 0, outputWhite: 255, minDiameterMM: null, originX: 0, originY: 0,
-    halftone:true,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringe:false,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1}, o);
+    halftone:true,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringe:false,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1,fillHolesMM:0,solidAbove:100,gainPoints:''}, o);
   n.protection = n.protection || 'off';
   if (!['off','edges','selection'].includes(n.protection)) throw Error('Protección de detalles inválida.');
   for (const [key, lo, hi] of [['dpi', 36, 2400], ['lpi', 5, 150], ['angle', -180, 180],
     ['tolerance', 0, 99], ['softness', 0.1, 100], ['strength', 1, 100], ['gamma', 0.25, 4],
     ['inputBlack', 0, 254], ['inputMidtone', 0.1, 9.99], ['inputWhite', 1, 255],
     ['outputBlack', 0, 255], ['outputWhite', 0, 255],['alphaThreshold',1,255],['shadowBoost',0,100],['colorBoost',0,100],
-    ['defringeRadius',1,4],['defringeStrength',0,100],['edgeContrast',16,255],['edgeRadius',1,4]]) {
+    ['defringeRadius',1,4],['defringeStrength',0,100],['edgeContrast',16,255],['edgeRadius',1,4],['fillHolesMM',0,1],['solidAbove',50,100]]) {
     if (!Number.isFinite(n[key]) || n[key] < lo || n[key] > hi) throw Error(`${key}: usa un valor de ${lo} a ${hi}.`);
   }
   if (n.inputBlack >= n.inputWhite) throw Error('El negro de entrada debe ser menor que el blanco.');
@@ -35,6 +36,7 @@ function validate(o) {
   if (!SHAPES.includes(n.shape) || !LEVELS[n.cleanup]) throw Error('Forma o nivel de limpieza inválidos.');
   if (n.halftone && n.dpi / n.lpi < 4) throw Error('Resolución insuficiente: se requieren al menos 4 píxeles por celda. Reduce LPI o aumenta resolución antes de procesar.');
   n.rgb = hexRGB(n.key);
+  n.gainCurve = gainLib.parseGain(n.gainPoints);n.gainMap = gainLib.inverse(n.gainCurve);
   n.minDiameterMM = n.minDiameterMM == null ? LEVELS[n.cleanup].minDiameterMM : n.minDiameterMM;
   if (!Number.isFinite(n.minDiameterMM) || n.minDiameterMM < 0 || n.minDiameterMM > 2) throw Error('Diámetro mínimo: usa 0 a 2 mm.');
   if(n.cleanup==='none')n.minDiameterMM=0;
@@ -62,12 +64,28 @@ function cleanedEdge(input,w,h,x,y,c,n){
   }
   return best&&boundary?original.map((v,k)=>Math.round(v+(best[k]-v)*n.defringeStrength/100)):original;
 }
+// RGB of a printed pixel: knockout recovery, edge cleanup and color boost.
+function paintInk(input,output,i,width,height,x,y,c,n){
+  const edge=n.defringe?cleanedEdge(input,width,height,x,y,c,n):null;
+  for (let k = 0; k < 3; k++) output[i + k] = n.recover && n.knockout && c.matte > 0
+    ? Math.round(clamp((input[i + k] - (1 - c.matte) * n.rgb[k]) / c.matte, 0, 255)) : edge?edge[k]:input[i+k];
+  if(n.shadowBoost||n.colorBoost)output.set(boostedColor(Array.from(output.subarray(i,i+3)),n),i);
+  output[i + 3] = 255;
+}
 // Levels affect coverage, not RGB. Preserve exact knockout holes even when
 // the output black point is lifted; otherwise garment pixels would reappear.
 function adjustLevels(value, n) {
   if (value <= 0) return 0;
   const t = clamp((value * 255 - n.inputBlack) / (n.inputWhite - n.inputBlack));
   return (n.outputBlack + Math.pow(t, 1 / n.inputMidtone) * (n.outputWhite - n.outputBlack)) / 255;
+}
+// Final tone: dot-gain compensation, then coverage at or above solidAbove
+// prints as solid (no tiny pores that ink or powder would close anyway).
+function tone(v, n) {
+  if (v <= 0) return 0;
+  if (n.gainMap) v = n.gainMap(v);
+  if (n.solidAbove < 100 && v >= n.solidAbove / 100) return 1;
+  return v;
 }
 // CDF of distance from center inside a unit square: correct tone at >78% too.
 function circleCDF(r) {
@@ -117,7 +135,7 @@ function coverage(r, g, b, a, n) {
       opacity *= matte;
     }
   }
-  return {value: adjustLevels(Math.pow(opacity, 1 / n.gamma) * n.strength / 100, n), matte};
+  return {value: tone(adjustLevels(Math.pow(opacity, 1 / n.gamma) * n.strength / 100, n), n), matte};
 }
 // Removes isolated solid components, using 8-connectivity. Equivalent-area
 // diameter is a particle filter, NOT a guarantee of minimum line width.
@@ -157,6 +175,7 @@ async function processRGBA(input, width, height, options = {}, hook) {
   let regionScreenPixels=0,regionProtectedPixels=0;
   const radians = n.angle * Math.PI / 180, cos = Math.cos(radians), sin = Math.sin(radians), cell = n.dpi / n.lpi;
   let inkPixels = 0;
+  const holeArea=n.halftone?minAreaFor(n.fillHolesMM,n.dpi):1,candidate=holeArea>1?new Uint8Array(width*height):null;
   for (let y = 0; y < height; y++) {
     if (hook && y % 32 === 0) await hook('screen', y / height);
     for (let x = 0; x < width; x++) {
@@ -179,6 +198,7 @@ async function processRGBA(input, width, height, options = {}, hook) {
         if(inRegion){regionScreenPixels++;regionProtectedPixels++;}continue;
       }
       if (c.value < LEVELS[n.cleanup].alphaFloor || c.value <= 0) continue;
+      if(candidate)candidate[y*width+x]=1;
       if(n.halftone) {
         // Solid coverage does not need a screen threshold; preserve exact tones.
         if(c.value<1) {
@@ -186,24 +206,27 @@ async function processRGBA(input, width, height, options = {}, hook) {
           if(c.value<=threshold((gx*cos+gy*sin)/cell,(-gx*sin+gy*cos)/cell,n.shape))continue;
         }
       } else if(c.value*255<n.alphaThreshold)continue;
-      const edge=n.defringe?cleanedEdge(input,width,height,x,y,c,n):null;
-      for (let k = 0; k < 3; k++) output[i + k] = n.recover && n.knockout && c.matte > 0
-        ? Math.round(clamp((input[i + k] - (1 - c.matte) * n.rgb[k]) / c.matte, 0, 255)) : edge?edge[k]:input[i+k];
-      if(n.shadowBoost||n.colorBoost)output.set(boostedColor(Array.from(output.subarray(i,i+3)),n),i);
-      output[i + 3] = 255;removedMask[y*width+x]=1; inkPixels++;
+      paintInk(input,output,i,width,height,x,y,c,n);removedMask[y*width+x]=1; inkPixels++;
       if(inRegion)regionScreenPixels++;
     }
   }
   const diameterPX = n.minDiameterMM / 25.4 * n.dpi;
   const minArea = Math.max(1, Math.ceil(Math.PI * (diameterPX / 2) ** 2));
   const cleanup = await removeParticles(output, width, height, minArea, hook, protectedMask);
+  let filled=0;
+  if(candidate){
+    const result=await fillHoles({data:output,stride:4,offset:3,candidate,width,height,minArea:holeArea,hook,onFill:p=>{
+      const x=p%width,y=(p-x)/width,i=p*4;paintInk(input,output,i,width,height,x,y,coverage(input[i],input[i+1],input[i+2],input[i+3],n),n);
+      removedMask[p]=1;if(x>=region.left&&x<region.left+region.width&&y>=region.top&&y<region.top+region.height)regionScreenPixels++;
+    }});filled=result.filledPixels;
+  }
   for(let p=0;p<width*height;p++)if(output[p*4+3])removedMask[p]=0;
   let regionInkPixels=0;
   for(let y=region.top;y<region.top+region.height;y++)for(let x=region.left;x<region.left+region.width;x++)if(output[(y*width+x)*4+3])regionInkPixels++;
   return {data: output,removedMask,protectedMask, width, height, stats: Object.assign({cellPX: cell, minArea,
-    minDiameterMM: n.minDiameterMM, inkPixels: inkPixels - cleanup.removedPixels,
+    minDiameterMM: n.minDiameterMM, inkPixels: inkPixels - cleanup.removedPixels + filled,
     protectedPixels:regionProtectedPixels,regionInkPixels,regionProtectedPixels,regionScreenPixels,regionRemovedPixels:regionScreenPixels-regionInkPixels,
-    coveragePercent: (inkPixels - cleanup.removedPixels) / (width * height) * 100}, cleanup)};
+    coveragePercent: (inkPixels - cleanup.removedPixels + filled) / (width * height) * 100}, candidate?{filledPixels:filled}:null, cleanup)};
 }
 function composite(rgba, width, height, background) {
   const out = new Uint8Array(width * height * 3);
@@ -214,4 +237,4 @@ function composite(rgba, width, height, background) {
   }
   return out;
 }
-module.exports = {SHAPES, LEVELS, hexRGB, validate, adjustLevels, threshold, coverage, cleanedEdge, processRGBA, composite, boostedColor};
+module.exports = {SHAPES, LEVELS, hexRGB, validate, adjustLevels, tone, threshold, coverage, cleanedEdge, processRGBA, composite, boostedColor};

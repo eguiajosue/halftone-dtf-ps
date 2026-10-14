@@ -170,3 +170,23 @@ test('rounded measurement display preserves full print size across cm/in changes
  assert.equal(e.widthCM.value,'7.87');await e.useCurrent.emit('click');await e.next.emit('click');
  assert.equal(calls.find(c=>c[0]==='begin')[2].widthCM,20);await e.cancel.emit('click');
 });
+
+test('dot-gain calibration and shadow options reach the engine; invalid pairs are explained and not applied',async()=>{
+ const {elements:e,calls}=fixture();await e.next.emit('click');calls.length=0;
+ e.gainPoints.value='10:14, 30:41, 50:63';await e.gainPoints.emit('input');
+ assert.match(e.gainInfo.textContent,/se pedirá/);
+ e.fillHolesMM.value='0.3';await e.fillHolesMM.emit('input');e.solidAbove.value='92';await e.solidAbove.emit('input');
+ await e.apply.emit('click');
+ const update=calls.filter(c=>c[0]==='update').pop()[1];
+ assert.equal(update.gainPoints,'10:14, 30:41, 50:63');assert.equal(update.fillHolesMM,0.3);assert.equal(update.solidAbove,92);
+ // An invalid pair shows the reason and is not queued as an update.
+ const {elements:f,calls:fc}=fixture();await f.next.emit('click');fc.length=0;
+ f.gainPoints.value='30:20,50:10';await f.gainPoints.emit('input');
+ assert.match(f.gainInfo.textContent,/Calibración/);assert.equal(fc.filter(c=>c[0]==='update').length,0);
+ await f.clearGain.emit('click');assert.equal(f.gainPoints.value,'');assert.match(f.gainInfo.textContent,/Sin compensación/);
+ // Recipes keep the calibration.
+ const recipes=require('../plugin/recipes');
+ const r=recipes.entry({name:'Mimaki negro',options:{gainPoints:'10:14,30:41',fillHolesMM:.25,solidAbove:95}});
+ assert.equal(r.options.gainPoints,'10:14,30:41');assert.equal(r.options.fillHolesMM,.25);
+ assert.throws(()=>recipes.entry({name:'x',options:{gainPoints:'30:20,50:10'}}),/Calibración/);
+});

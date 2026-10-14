@@ -6,7 +6,9 @@ Documento de trabajo con dos capas, como en la referencia DTPrep: arte con **má
 
 Motor en caché (`plugin/live-render.js`): cobertura y umbrales en 16 bits por píxel, niveles en tabla y limpieza de partículas acotada con las mismas islas eliminadas. A 13 MP, un ajuste baja de ~2,1 s a ~0,23 s con limpieza Normal (~0,03 s sin limpieza), medido en CPU. Espera de 40 ms antes de recalcular.
 
-Interfaz: tamaño actual a 300 ppp y equivalencia en LPC en Preparar; **un solo slider de niveles con tiradores negro / medios / blanco** y otro de salida negro / blanco, como en Photoshop y DTPrep (medios en 0,5^gamma; arrastre, clic en la pista y teclado); sombras visibles; vista Alfa; lotes en el menú ☰. 140 pruebas JavaScript. Detalles y pendientes nativos en `docs/AUDITORIA-DTPREP.md`.
+Calidad de impresión DTF: **rellenar huecos menores** (cierra los poros de las sombras que la tinta y el polvo taparían; solo píxeles tramados, nunca color eliminado ni transparencia), **sólido desde cobertura %** (las sombras por encima del tope se imprimen sin trama) y **compensación de ganancia de punto** a partir de la carta de calibración (pares nominal:medido, curva inversa aplicada a la cobertura; se guarda en las recetas). Los valores por defecto (0 mm, 100 %, sin curva) no cambian la salida ni un byte. Funcionan igual en vivo, en lotes y en bloques de imágenes grandes (el halo de bloque incluye el tamaño del hueco; prueba de costuras idéntica). Ajuste en vivo a 13 MP con las tres opciones: ~0,3 s.
+
+Interfaz: tamaño actual a 300 ppp y equivalencia en LPC en Preparar; **un solo slider de niveles con tiradores negro / medios / blanco** y otro de salida negro / blanco, como en Photoshop y DTPrep (medios en 0,5^gamma; arrastre, clic en la pista y teclado); sombras visibles; vista Alfa; lotes en el menú ☰. 148 pruebas JavaScript. Detalles y pendientes nativos en `docs/AUDITORIA-DTPREP.md`.
 
 ## 0.6.4 RC — 2026-10-09
 

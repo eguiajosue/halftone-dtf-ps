@@ -8,6 +8,8 @@ Panel en español para preparar arte de color con huecos transparentes para DTF.
 
 **Edición en vivo como DTPrep (sin publicar):** el documento de trabajo usa arte con máscara de capa y un relleno con el color de prenda; los ajustes reescriben solo la máscara y las vistas cambian capas sin escribir píxeles. [Auditoría y mediciones](docs/AUDITORIA-DTPREP.md).
 
+Calidad de sombras y calibración (sin publicar): rellenar huecos menores, «sólido desde» y compensación de ganancia de punto desde la carta de calibración. [Cómo calibrar](docs/CALIBRACION-Y-CALIDAD-DTF.md).
+
 ![Preparación](docs/UI-PREPARAR-0.6.4.png)
 ![Ajustes](docs/UI-AJUSTAR-0.6.4.png)
 

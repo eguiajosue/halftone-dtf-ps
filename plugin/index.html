@@ -23,6 +23,7 @@
       </header>
       <section id="toolsPanel" class="hidden">
         <sp-action-button size="s" quiet id="openBatch">Procesar lote</sp-action-button>
+        <sp-action-button size="s" quiet id="toggleCalibration">Calibración de punto</sp-action-button>
         <sp-action-button size="s" quiet id="toggleRecipes">Recetas y perfiles</sp-action-button>
         <sp-action-button size="s" quiet id="toggleHelp">Ayuda y diagnóstico</sp-action-button>
         <sp-action-button size="s" quiet id="toggleUpdates">Versión y actualizaciones</sp-action-button>
@@ -65,6 +66,15 @@
           <sp-action-button size="s" quiet id="openUpdate">Abrir releases</sp-action-button>
         </div>
         <sp-action-button size="s" quiet id="updaterGuide">Instalación y actualización automática</sp-action-button>
+      </section>
+      <section class="hidden" id="calibrationPanel">
+        <h2>Ganancia de punto</h2>
+        <p class="hint">La tinta se expande en el film: un 30 % puede imprimirse como 41 %. Imprime la carta de calibración con la lineatura que usarás, mide el porcentaje real de cada parche y escribe pares nominal:medido.</p>
+        <label>Nominal:medido · %<input id="gainPoints" type="text" maxlength="80" placeholder="10:14, 30:41, 50:63, 70:80, 90:94" autocomplete="off">
+        </label>
+        <p class="hint" id="gainInfo">Sin compensación: se imprime la cobertura pedida.</p>
+        <sp-action-button size="s" quiet id="clearGain">Quitar compensación</sp-action-button>
+        <p class="hint">La compensación se guarda con las recetas. Mídela por equipo, film y lineatura; cambia si cambia cualquiera.</p>
       </section>
       <section class="hidden" id="recipesPanel">
         <h2>Recetas del taller</h2>
@@ -369,6 +379,11 @@
           </label>
           <label>Diámetro equivalente mínimo · mm<input id="minDiameterMM" max="2" min="0" step="0.01" type="number" value="0.20">
           </label>
+          <label>Rellenar huecos menores · mm<input id="fillHolesMM" max="1" min="0" step="0.01" type="number" value="0">
+          </label>
+          <label>Sólido desde cobertura · %<input id="solidAbove" max="100" min="50" step="1" type="number" value="100">
+          </label>
+          <p class="hint">Rellenar huecos cierra los poros de las sombras que la tinta y el polvo taparían; no imprime color eliminado ni zonas transparentes. «Sólido desde» imprime sin trama las sombras que superan ese porcentaje. 0 mm y 100 % lo desactivan.</p>
         </section>
         <section class="hidden" id="inspectorPanel">
           <h2>Revisa el resultado</h2>

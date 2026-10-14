@@ -1,9 +1,9 @@
 'use strict';
 const {validate,hexRGB}=require('./engine');
 const NUMBERS=['lpi','angle','tolerance','softness','inputBlack','inputMidtone','inputWhite','outputBlack','outputWhite','minDiameterMM',
- 'alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','widthCM','heightCM','focusX','focusY','comparePosition','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB'];
+ 'alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','widthCM','heightCM','focusX','focusY','comparePosition','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','fillHolesMM','solidAbove'];
 const BOOLS=['knockout','recover','halftone','defringe','linkBackground','trimArt','convertCopy'];
-const STRINGS=['key','shape','cleanup','memoryMode','protection','viewMode','previewColor','sizeAxis','placement','shirtSize','garment','units','previewScope'];
+const STRINGS=['key','shape','cleanup','memoryMode','protection','viewMode','previewColor','sizeAxis','placement','shirtSize','garment','units','previewScope','gainPoints'];
 const text=(v,max=120)=>String(v||'').trim().slice(0,max);
 function options(raw={}){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Receta inválida.');

@@ -10,9 +10,9 @@ const recipesAPI=require('./recipes'),projects=require('./project'),diagnostics=
 const {CONTROL_SELECTOR,bootstrap}=require('./ui-controls');
 const $=id=>document.getElementById(id);
 const levels={inputBlack:7,inputMidtone:2,inputWhite:100,outputBlack:0,outputWhite:255};
-const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
+const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','fillHolesMM','solidAbove','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
 const checks=['knockout','recover','linkBackground','halftone','defringe','trimArt','convertCopy'];
-const settingIDs=['source','key',...checks,...numeric,'shape','cleanup','viewMode','previewColor','sizeAxis','placement','shirtSize','memoryMode','protection','units','garment','previewScope'];
+const settingIDs=['source','key',...checks,...numeric,'shape','cleanup','viewMode','previewColor','sizeAxis','placement','shirtSize','memoryMode','protection','units','garment','previewScope','gainPoints'];
 const colorIDs=['key','knockout','tolerance','softness'];
 let busy=false,stage='prepare',previewCache=null,outputID=null,sourceInfo=null,session=null,live=null,paintRevision=0;
 let batchFiles=[],batchFolder=null,batchToken=null,batchReturnStage='prepare';
@@ -26,7 +26,7 @@ let controlsBusy=null,viewTimer=null;
 const allSizes=[...sizing.SIZES,...sizing.CHILD_SIZES];
 function settings() {
   const o={};for(const id of settingIDs)o[id]=checks.includes(id)?$(id).checked:numeric.includes(id)?($(id).value===''?NaN:Number($(id).value)):$(id).value;
-  o.key=o.key.trim();o.previewColor=o.previewColor.trim();
+  o.key=o.key.trim();o.previewColor=o.previewColor.trim();o.gainPoints=o.gainPoints.trim();
   if(canonicalSize){o.widthCM=canonicalSize.widthCM;o.heightCM=canonicalSize.heightCM;}
   else{if(o.units==='in'){o.widthCM*=2.54;o.heightCM*=2.54;}}
   if(sourceInfo){o.documentID=sourceInfo.documentID;o.layerID=sourceInfo.layerID;o.sourceWidth=sourceInfo.width;o.sourceHeight=sourceInfo.height;}return o;
@@ -43,6 +43,11 @@ function syncSwatches(){
 }
 function syncScreen(){const lpi=Number($('lpi').value);if(Number.isFinite(lpi)&&lpi>0)$('lpcInfo').textContent=(lpi/2.54).toFixed(1)+' líneas por cm (LPC)';for(const id of ['lpi','angle','shape'])$(id+'Edit').value=$(id).value;$('halftoneEdit').checked=$('halftone').checked;$('editScreen').textContent='Trama · '+$('lpi').value+' LPI · '+$('angle').value+'°';}
 const levelSliders=[];
+function updateGainInfo(){
+  const gain=require('./gain');
+  try{const points=gain.parseGain($('gainPoints').value);$('gainInfo').textContent=points?gain.summary(points):'Sin compensación: se imprime la cobertura pedida.';return true;}
+  catch(e){$('gainInfo').textContent=e.message;return false;}
+}
 function syncSliders(){for(const slider of levelSliders)slider.render();for(const id of ['shadowBoost','colorBoost'])$(id+'Slider').value=Number($(id).value);}
 function ensureEditDefaults(){
   if(!['original','garment','beforeGarment','compare','transparent','mask','removed','protection'].includes($('viewMode').value))$('viewMode').value='garment';
@@ -53,7 +58,7 @@ function ensureEditDefaults(){
   }catch(_){
     // Invalid hidden editing fields must never trap the user in stage 1 after
     // Cancel or a restart. Stage-1 color errors remain visible and editable.
-    for(const [id,value]of Object.entries(Object.assign({},levels,{shape:'round',lpi:30,angle:33,cleanup:'standard',minDiameterMM:.20,focusX:50,focusY:50,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1})))$(id).value=value;
+    for(const [id,value]of Object.entries(Object.assign({},levels,{shape:'round',lpi:30,angle:33,cleanup:'standard',minDiameterMM:.20,fillHolesMM:0,solidAbove:100,gainPoints:'',focusX:50,focusY:50,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1})))$(id).value=value;
     $('recover').checked=false;$('defringe').checked=false;$('halftone').checked=true;$('protection').value='off';syncSliders();
   }
 }
@@ -227,7 +232,7 @@ function init(){
     $(id).addEventListener('input',()=>{syncSliders();queue();});
   }
   $('resetLevels').addEventListener('click',()=>{for(const [id,value]of Object.entries(levels))$(id).value=value;syncSliders();queue();});
-  for(const id of ['lpi','angle','minDiameterMM','focusX','focusY','alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius'])$(id).addEventListener('input',queue);
+  for(const id of ['lpi','angle','minDiameterMM','fillHolesMM','solidAbove','focusX','focusY','alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius'])$(id).addEventListener('input',queue);
   for(const id of ['shape','recover','protection','halftone','defringe'])$(id).addEventListener('change',queue);
   $('captureSelection').addEventListener('click',()=>action(async()=>{
     if(live)await live.dispose();live=null;
@@ -308,7 +313,7 @@ function setFields(o){
  for(const id of settingIDs)if(o[id]!=null){if(checks.includes(id))$(id).checked=o[id];else $(id).value=o[id];}
  displayUnit=$('units').value;
  if(o.widthCM!=null&&o.heightCM!=null){canonicalSize={widthCM:o.widthCM,heightCM:o.heightCM};$('widthCM').value=fromCM(o.widthCM).toFixed(2);$('heightCM').value=fromCM(o.heightCM).toFixed(2);}
- syncGarmentOptions(o.shirtSize);syncColor();syncSliders();syncScreen();
+ syncGarmentOptions(o.shirtSize);syncColor();syncSliders();syncScreen();updateGainInfo();
 }
 function rememberAreas(){
  const place=$('batchPlacement').value;profileAreas[place]=profileAreas[place]||{};
@@ -483,7 +488,7 @@ function initCompact(){
   $('cleanup').value=value;$('minDiameterMM').value=LEVELS[value].minDiameterMM;syncCleanup();queue();
  });
  const repaint=()=>{syncViews();save();if(previewCache)paint(previewCache).catch(e=>{if(!e.superseded)status(e.message);});};
- for(const [button,panel]of [['toggleTools','toolsPanel'],['toggleSource','sourceOptions'],['togglePerformance','performancePanel'],['togglePrepareColor','prepareColorAdvanced'],['toggleBatchCommon','batchCommonPanel'],['toggleOutput','outputControls']])$(button).addEventListener('click',()=>{
+ for(const [button,panel]of [['toggleTools','toolsPanel'],['toggleSource','sourceOptions'],['togglePerformance','performancePanel'],['toggleCalibration','calibrationPanel'],['togglePrepareColor','prepareColorAdvanced'],['toggleBatchCommon','batchCommonPanel'],['toggleOutput','outputControls']])$(button).addEventListener('click',()=>{
   toggle(panel);if($(button).setAttribute)$(button).setAttribute('aria-expanded',String($(panel).className!=='hidden'));
  });
  $('editScreen').addEventListener('click',()=>{syncScreen();$('tramaControls').className=$('tramaControls').className.includes('hidden')?'control-card':'control-card hidden';});
@@ -501,7 +506,9 @@ function initCompact(){
   if(color){$('previewColor').value=color;$('linkBackground').checked=false;if(previewCache)await paint(previewCache);}
  }));
  $('toggleBatchAreas').addEventListener('click',()=>{$('batchAreasPanel').className=$('batchAreasPanel').className==='compact-areas'?'':'compact-areas';});
- syncViews();syncScreen();
+ $('gainPoints').addEventListener('input',()=>{if(updateGainInfo()){save();queue();}});
+ $('clearGain').addEventListener('click',()=>{$('gainPoints').value='';updateGainInfo();save();queue();});
+ syncViews();syncScreen();updateGainInfo();
 }
 function applySizePreset(){
  if(busy||!sourceInfo)return;

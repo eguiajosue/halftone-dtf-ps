@@ -61,10 +61,13 @@ async function createDiskStore(width,height,components=4){
 function haloFor(options){
   const n=validate(options),diameter=n.minDiameterMM/25.4*n.dpi;
   const area=Math.max(1,Math.ceil(Math.PI*(diameter/2)**2));
+  const holes=n.halftone?require('./holes').minAreaFor(n.fillHolesMM,n.dpi):1;
   // Every removable 8-connected component has < area pixels and hence spans
   // at most area-1 steps. This halo gives exact global small-particle cleanup,
   // even across tile corners. Also include the edge detector's one-pixel radius.
-  return area-1+Math.max(n.protection==='edges'?n.edgeRadius:0,n.defringe?n.defringeRadius:0);
+  // Pores smaller than `holes` pixels are filled after islands are removed, so
+  // their extent plus the context that decides each member is needed.
+  return area-1+(holes>1?holes-1:0)+Math.max(n.protection==='edges'?n.edgeRadius:0,n.defringe?n.defringeRadius:0);
 }
 async function processTiles(source,target,options,hook,protectStore){
   const n=validate(options),halo=haloFor(n),count=Math.ceil(source.width/TILE_SIZE)*Math.ceil(source.height/TILE_SIZE);

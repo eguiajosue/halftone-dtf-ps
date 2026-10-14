@@ -8,7 +8,8 @@
  * The mask is lut[coverage] > threshold: no trigonometry per slider move.
  * Values are quantized to 1/65535, so a pixel exactly on a dot edge may differ
  * from processRGBA; protection modes keep using processRGBA. */
-const {LEVELS,validate,adjustLevels,threshold,coverage,cleanedEdge,boostedColor}=require('./engine');
+const {LEVELS,validate,adjustLevels,tone,threshold,coverage,cleanedEdge,boostedColor}=require('./engine');
+const {fillHoles,minAreaFor}=require('./holes');
 const SOLID=65536;
 const clamp=(x,lo=0,hi=1)=>Math.max(lo,Math.min(hi,x));
 function coverageKey(n){return JSON.stringify([n.knockout,n.knockout?[n.key,n.tolerance,n.softness,n.recover]:0,n.gamma,n.strength]);}
@@ -24,7 +25,7 @@ function colorKey(n){
 function levelsTable(n){
   const lut=new Int32Array(65536),floor=LEVELS[n.cleanup].alphaFloor;
   for(let q=1;q<65536;q++){
-    const v=adjustLevels(q/65535,n);
+    const v=tone(adjustLevels(q/65535,n),n);
     if(v<floor||v<=0)continue;
     if(!n.halftone)lut[q]=v*255<n.alphaThreshold?0:SOLID;
     else lut[q]=v>=1?SOLID:clamp(Math.round(v*65535),1,65535);
@@ -84,18 +85,21 @@ class LiveRenderer{
     if(n.protection&&n.protection!=='off')throw Error('La protección de detalles usa el motor completo.');
     const cov=await this.coverage(n,hook),thr=await this.thresholds(n,hook),lut=levelsTable(n);
     const mask=target||new Uint8Array(count);let screened=0;
+    const holeArea=n.halftone?minAreaFor(n.fillHolesMM,n.dpi):1,cand=holeArea>1?(this.cand&&this.cand.length===count?this.cand:(this.cand=new Uint8Array(count))):null;
     for(let y=0;y<height;y++){
       if(hook&&y%512===0)await hook('screen',y/height);
       let p=y*width;const end=p+width;
-      if(thr)for(;p<end;p++){const v=lut[cov[p]];if(v>thr[p]){mask[p]=255;screened++;}else mask[p]=0;}
+      if(cand)for(;p<end;p++){const v=lut[cov[p]];cand[p]=v?1:0;if(v>thr[p]){mask[p]=255;screened++;}else mask[p]=0;}
+      else if(thr)for(;p<end;p++){const v=lut[cov[p]];if(v>thr[p]){mask[p]=255;screened++;}else mask[p]=0;}
       else for(;p<end;p++){if(lut[cov[p]]){mask[p]=255;screened++;}else mask[p]=0;}
     }
     const diameterPX=n.minDiameterMM/25.4*n.dpi,minArea=Math.max(1,Math.ceil(Math.PI*(diameterPX/2)**2));
     const cleanup=await this.particles(mask,minArea,hook);
-    const inkPixels=screened-cleanup.removedPixels;
+    const filled=cand?(await fillHoles({data:mask,candidate:cand,width,height,minArea:holeArea,hook})).filledPixels:0;
+    const inkPixels=screened-cleanup.removedPixels+filled;
     return {mask,stats:Object.assign({cellPX:n.dpi/n.lpi,minArea,minDiameterMM:n.minDiameterMM,inkPixels,
-      protectedPixels:0,regionInkPixels:inkPixels,regionProtectedPixels:0,regionScreenPixels:screened,regionRemovedPixels:cleanup.removedPixels,
-      coveragePercent:inkPixels/count*100},cleanup)};
+      protectedPixels:0,regionInkPixels:inkPixels,regionProtectedPixels:0,regionScreenPixels:screened+filled,regionRemovedPixels:cleanup.removedPixels,
+      coveragePercent:inkPixels/count*100},cand?{filledPixels:filled}:null,cleanup)};
   }
   // 8-connected islands smaller than minArea are cleared, as in engine.removeParticles.
   // The search stops once a component reaches minArea pixels or touches a pixel
@@ -149,7 +153,7 @@ class LiveRenderer{
     }
     return out;
   }
-  dispose(){this.source=null;this.cov=null;this.thr=null;this.visited=null;this.queue=null;}
+  dispose(){this.source=null;this.cov=null;this.thr=null;this.cand=null;this.visited=null;this.queue=null;}
 }
 // Printable RGBA: color where the mask prints, fully transparent elsewhere.
 function compose(color,mask,width,crop){
