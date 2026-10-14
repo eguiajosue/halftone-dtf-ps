@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const {validate}=require('../plugin/engine');
-function fixture(){
+function fixture({refuse=[]}={}){
   const html=fs.readFileSync(require.resolve('../plugin/index.html'),'utf8'),elements={},calls=[];
   for(const m of html.matchAll(/<([\w-]+)([^>]*\bid="([^"]+)"[^>]*)>/g)){
     const [,tag,attrs,id]=m,el={style:{},id,tag,type:(attrs.match(/type="([^"]+)"/)||[])[1]||'text',value:(attrs.match(/value="([^"]*)"/)||[])[1]||'',checked:/\bchecked\b/.test(attrs),className:(attrs.match(/class="([^"]*)"/)||[])[1]||'',disabled:false,textContent:'',src:'',listeners:{}};
@@ -13,6 +13,8 @@ function fixture(){
     el.addEventListener=(name,fn)=>(el.listeners[name]||=[]).push(fn);
     el.emit=async(name,event={})=>{for(const fn of el.listeners[name]||[])await fn({target:el,...event});};elements[id]=el;
   }
+  // Built-in Photoshop controls assert on some property writes: emulate a control that refuses them.
+  for(const [id,prop] of refuse){const el=elements[id];let held=el[prop];Object.defineProperty(el,prop,{get:()=>held,set:v=>{if(el.__armed!==false)throw Error('false == true');held=v;},configurable:true});}
   const src={data:new Uint8Array([240,80,20,255]),width:1,height:1};
   const size={width:300,height:300,widthCM:2.54,heightCM:2.54};
   const stats={inkPixels:100,coveragePercent:50};
@@ -327,4 +329,15 @@ test('inches stay anchored too, and an original larger than 100 cm starts scaled
 test('the header shows the running version and the panel leaves the starting message',async()=>{
  const {elements:e}=fixture();assert.equal(e.brandVersion.textContent,'v'+require('../plugin/manifest.json').version);
  assert.notEqual(e.status.textContent,'Iniciando panel…');
+});
+
+test('controls that refuse property writes do not stop the panel: listeners stay connected and the banner names the culprits',async()=>{
+ const {elements:e,calls}=fixture({refuse:[['viewOriginal','selected'],['cleanupHigh','selected'],['next','disabled'],['batchRun','disabled']]});
+ assert.match(e.errorBanner.textContent,/^Avisos de Photoshop al iniciar \(\d+\): /);
+ assert.match(e.errorBanner.textContent,/#viewOriginal\.selected → false == true/);assert.match(e.errorBanner.textContent,/#next\.disabled → false == true/);
+ assert.notEqual(e.brandVersion.textContent,'');assert.notEqual(e.status.textContent,'Iniciando panel…');
+ // everything after the refusing writes is still wired: size fields, preset and the main button work
+ e.widthCM.value='20';await e.widthCM.emit('input');assert.equal(e.heightCM.value,'20.00');
+ e.presetSelect.value='preset:dark-fine';await e.presetSelect.emit('change');assert.equal(e.lpi.value,40);
+ await e.next.emit('click');assert.equal(calls.filter(c=>c[0]==='begin').length,1);assert.equal(e.editStage.className,'');await e.cancel.emit('click');
 });

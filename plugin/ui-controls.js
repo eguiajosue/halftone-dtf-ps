@@ -16,7 +16,7 @@ function bootstrap(document,registry,start){
   const missing=REQUIRED.filter(tag=>!registry||!registry.get(tag));
   try{start();}
   catch(e){
-    const where=e&&e.stack?String(e.stack).split('\n').slice(0,2).join(' · '):'';
+    const where=e&&e.stack?String(e.stack).split('\n').slice(0,5).map(line=>line.trim().replace(/^at /,'').replace(/\(?(?:uxp|plugin|file):\/\/[^)]*\//g,'(')).join(' · '):'';
     report(document,'Error al iniciar el panel: '+(e&&e.message||e)+(where?' ['+where+']':''),{error:true});
     return false;
   }

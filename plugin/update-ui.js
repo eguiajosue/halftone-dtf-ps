@@ -1,5 +1,7 @@
 'use strict';
 const {createChecker,RELEASES}=require('./updates');
+// Photoshop's built-in controls may refuse a property write; never let that stop the panel.
+const set=(element,property,value)=>{try{element[property]=value;}catch(_){}};
 function initUpdates({get,preferences,fetchImpl,photoshop,open}){
   const manifest=require('./manifest.json'),distribution=require('./distribution.json');
   const text=get('updateStatus'),button=get('checkUpdates'),automatic=get('autoCheckUpdates'),download=get('openUpdate');
@@ -9,15 +11,15 @@ function initUpdates({get,preferences,fetchImpl,photoshop,open}){
   const launch=async()=>{try{const result=await open(target,'Abrir la distribución de Halftone DTF. La instalación la gestiona Adobe Creative Cloud.');if(result)throw Error(result);}catch(e){text.textContent=e.message||String(e);}};
   download.addEventListener('click',launch);
   if(distribution.channel==='marketplace'){
-    automatic.checked=false;automatic.disabled=true;button.disabled=true;
+    set(automatic,'checked',false);set(automatic,'disabled',true);set(button,'disabled',true);
     text.textContent='Esta edición se actualiza desde Creative Cloud Marketplace.';
-    target=distribution.marketplaceUrl;download.textContent='Abrir Marketplace';download.disabled=!target;
-    return {sync(){automatic.disabled=true;button.disabled=true;download.disabled=!target;}};
+    target=distribution.marketplaceUrl;download.textContent='Abrir Marketplace';set(download,'disabled',!target);
+    return {sync(){set(automatic,'disabled',true);set(button,'disabled',true);set(download,'disabled',!target);}};
   }
-  try{automatic.checked=preferences.getItem('halftone-auto-check-v1')!=='false';}catch(_){automatic.checked=true;}
+  try{set(automatic,'checked',preferences.getItem('halftone-auto-check-v1')!=='false');}catch(_){set(automatic,'checked',true);}
   const checker=createChecker({fetchImpl,installed:manifest,photoshop,read:k=>preferences.getItem(k),write:(k,v)=>preferences.setItem(k,v)});
   async function check(force){
-    checking=true;button.disabled=true;
+    checking=true;set(button,'disabled',true);
     if(force)text.textContent='Buscando versión estable…';
     try{
       const result=await checker.check(force);if(result.skipped)return;
@@ -31,7 +33,7 @@ function initUpdates({get,preferences,fetchImpl,photoshop,open}){
         text.textContent=result.empty?'Aún no hay un instalador estable publicado.':'Tu versión está al día.';
       }
     }catch(e){text.textContent=force?(e.message||String(e)):'No se pudo comprobar una actualización verificada. Puedes seguir trabajando.';}
-    finally{checking=false;button.disabled=locked;}
+    finally{checking=false;set(button,'disabled',locked);}
   }
   button.addEventListener('click',()=>check(true));
   automatic.addEventListener('change',()=>{try{preferences.setItem('halftone-auto-check-v1',String(automatic.checked));}catch(_){}if(automatic.checked&&fetchImpl)check(false);});
@@ -40,6 +42,6 @@ function initUpdates({get,preferences,fetchImpl,photoshop,open}){
   });
   text.textContent='Las consultas no envían imágenes ni ajustes. La instalación automática se activa una vez en Windows.';
   if(automatic.checked&&fetchImpl)check(false);
-  return {sync(busy){locked=busy;button.disabled=busy||checking;},check};
+  return {sync(busy){locked=busy;set(button,'disabled',busy||checking);},check};
 }
 module.exports={initUpdates};

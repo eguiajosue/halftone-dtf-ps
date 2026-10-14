@@ -50,7 +50,7 @@ function updateGainInfo(){
   try{const points=gain.parseGain($('gainPoints').value);$('gainInfo').textContent=points?gain.summary(points):'Sin compensación: se imprime la cobertura pedida.';return true;}
   catch(e){$('gainInfo').textContent=e.message;return false;}
 }
-function syncSliders(){for(const slider of levelSliders)slider.render();for(const id of ['shadowBoost','colorBoost'])$(id+'Slider').value=Number($(id).value);}
+function syncSliders(){for(const slider of levelSliders)slider.render();for(const id of ['shadowBoost','colorBoost'])put($(id+'Slider'),'value',Number($(id).value));}
 function ensureEditDefaults(){
   if(!['original','garment','beforeGarment','compare','transparent','mask','removed','protection'].includes($('viewMode').value))$('viewMode').value='garment';
   try{hexRGB($('previewColor').value);}catch(_){$('previewColor').value='#202020';}
@@ -67,7 +67,7 @@ function ensureEditDefaults(){
 function load(){
   try{
     const o=JSON.parse(localStorage.getItem('halftone-dtf-settings-v5')||localStorage.getItem('halftone-dtf-settings-v4')||localStorage.getItem('halftone-dtf-settings-v3')||localStorage.getItem('halftone-dtf-settings-v2')||'{}');
-    for(const id of settingIDs)if(o[id]!=null){if(checks.includes(id))$(id).checked=Boolean(o[id]);else $(id).value=o[id];}
+    for(const id of settingIDs)if(o[id]!=null){if(checks.includes(id))put($(id),'checked',Boolean(o[id]));else put($(id),'value',o[id]);}
     syncGarmentOptions(o.shirtSize);
   }catch(_){status('Preferencias reiniciadas.');}
   displayUnit=$('units').value;
@@ -77,20 +77,20 @@ function load(){
 function controls(){
   if(controlsBusy!==busy){
     const controlElements=Array.from(document.querySelectorAll(CONTROL_SELECTOR));
-    for(const el of controlElements)el.disabled=busy;controlsBusy=busy;
+    for(const el of controlElements)put(el,'disabled',busy);controlsBusy=busy;
   }
   syncCleanup();
-  $('next').disabled=busy;$('apply').disabled=busy||!session;
-  $('export').disabled=busy||outputID===null;$('exportWhite').disabled=busy||outputID===null;$('sheetBuild').disabled=busy||!sheetPlan;$('previewColor').disabled=busy||$('linkBackground').checked;
-  $('batchRun').disabled=busy||!batchFiles.length||!batchFolder;$('whiteChokeMMBatch').disabled=busy||!$('batchWhite').checked;$('whiteFormatBatch').disabled=busy||!$('batchWhite').checked;
-  $('batchCancel').disabled=!batchToken||batchToken.cancelled;
-  $('cancelPreparation').disabled=!initialToken||initialToken.cancelled;$('cancelPreparation').className=initialToken?'':'hidden';
-  $('lpi').disabled=busy||!$('halftone').checked;$('angle').disabled=busy||!$('halftone').checked;$('shape').disabled=busy||!$('halftone').checked;$('alphaThreshold').disabled=busy||$('halftone').checked;
-  $('minDiameterMM').disabled=busy||$('cleanup').value==='none';
-  $('saveProject').disabled=busy||!session;$('reopenLastProject').disabled=busy||!lastProject;
-  $('captureSelection').disabled=busy||!session||session.sourceID==null;
-  for(const id of ['lpiEdit','angleEdit','shapeEdit'])$(id).disabled=busy||!$('halftone').checked;
-  $('widthCM').disabled=busy||$('sizeMode').value==='preset';$('heightCM').disabled=busy||$('sizeMode').value==='preset';
+  put($('next'),'disabled',busy);put($('apply'),'disabled',busy||!session);
+  put($('export'),'disabled',busy||outputID===null);put($('exportWhite'),'disabled',busy||outputID===null);put($('sheetBuild'),'disabled',busy||!sheetPlan);put($('previewColor'),'disabled',busy||$('linkBackground').checked);
+  put($('batchRun'),'disabled',busy||!batchFiles.length||!batchFolder);put($('whiteChokeMMBatch'),'disabled',busy||!$('batchWhite').checked);put($('whiteFormatBatch'),'disabled',busy||!$('batchWhite').checked);
+  put($('batchCancel'),'disabled',!batchToken||batchToken.cancelled);
+  put($('cancelPreparation'),'disabled',!initialToken||initialToken.cancelled);put($('cancelPreparation'),'className',initialToken?'':'hidden');
+  put($('lpi'),'disabled',busy||!$('halftone').checked);put($('angle'),'disabled',busy||!$('halftone').checked);put($('shape'),'disabled',busy||!$('halftone').checked);put($('alphaThreshold'),'disabled',busy||$('halftone').checked);
+  put($('minDiameterMM'),'disabled',busy||$('cleanup').value==='none');
+  put($('saveProject'),'disabled',busy||!session);put($('reopenLastProject'),'disabled',busy||!lastProject);
+  put($('captureSelection'),'disabled',busy||!session||session.sourceID==null);
+  for(const id of ['lpiEdit','angleEdit','shapeEdit'])put($(id),'disabled',busy||!$('halftone').checked);
+  put($('widthCM'),'disabled',busy||$('sizeMode').value==='preset');put($('heightCM'),'disabled',busy||$('sizeMode').value==='preset');
   if(updateUI)updateUI.sync(busy);
 }
 function showStage(next){
@@ -98,6 +98,19 @@ function showStage(next){
   for(const id of ['prepare','edit','result','batch','sheet'])$(id+'Stage').className=id===next?'':'hidden';
   $('stageBadge').textContent={prepare:'Preparar',edit:'Ajustar',result:'Exportar',batch:'Lotes',sheet:'Pliegos'}[next];
   $('stepLabel').textContent={prepare:'1 · Preparar impresión',edit:'2 · Editar semitonos',result:'Resultado · listo para exportar',batch:'Lotes · imágenes × tallas',sheet:'Pliegos · varios diseños en un rollo'}[next];controls();
+}
+// Photoshop's built-in controls assert on some property writes. A refusal is
+// recorded (which control, which property) and the panel keeps going; the
+// notes are shown in the red banner when starting ends.
+const startupNotes=new Map();
+function note(label,e){const m=(e&&e.message)||String(e);if(!startupNotes.has(label))startupNotes.set(label,m);}
+function put(el,prop,value){try{el[prop]=value;}catch(e){note('#'+(el&&el.id)+'.'+prop,e);}}
+function putAttr(el,name,value){try{if(el&&el.setAttribute)el.setAttribute(name,value);}catch(e){note('#'+(el&&el.id)+'['+name+']',e);}}
+function attempt(label,fn){try{return fn();}catch(e){note(label,e);}}
+function reportStartup(){
+  if(!startupNotes.size)return;
+  const parts=Array.from(startupNotes).slice(0,6).map(([label,message])=>label+' → '+message);
+  showError('Avisos de Photoshop al iniciar ('+startupNotes.size+'): '+parts.join(' | '));
 }
 // A failure must never look like "the button does nothing": it is shown in a
 // banner at the top as well as in the status line.
@@ -284,7 +297,7 @@ function openBatch(){
   batchAreaDefaults();batchInfo();showStage('batch');status('Selecciona las imágenes y las tallas que necesita cada una.');
 }
 function init(){
-  load();showStage('prepare');$('brandVersion').textContent='v'+require('./manifest.json').version;
+  attempt('load',load);attempt('showStage',()=>showStage('prepare'));attempt('version',()=>{$('brandVersion').textContent='v'+require('./manifest.json').version;});
   $('useCurrent').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){status(e.message);showError(e.message);}});
   $('detectDoc').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){sourceInfo=null;$('currentSizeInfo').textContent='Sin origen: '+e.message;status(e.message);showError(e.message);controls();}});
   for(const axis of ['width','height'])for(const eventName of ['input','change'])$(axis+'CM').addEventListener(eventName,()=>{
@@ -431,10 +444,11 @@ function init(){
   });
   $('batchCancel').addEventListener('click',()=>{if(batchToken){batchToken.cancelled=true;controls();$('batchProgress').textContent='Deteniendo; se conservarán los PNG completados…';}});
   $('batchRun').addEventListener('click',()=>action(()=>executeBatch()));
-  initExtras();initCompact();
-  updateUI=require('./update-ui').initUpdates({get:$,preferences:localStorage,fetchImpl:typeof fetch==='function'?fetch:undefined,photoshop:typeof fetch==='function'?require('photoshop').app.version:'25.0.0',open:(url,text)=>require('uxp').shell.openExternal(url,text)});
+  attempt('initExtras',initExtras);attempt('initCompact',initCompact);
+  updateUI=attempt('updates',()=>require('./update-ui').initUpdates({get:$,preferences:localStorage,fetchImpl:typeof fetch==='function'?fetch:undefined,photoshop:typeof fetch==='function'?require('photoshop').app.version:'25.0.0',open:(url,text)=>require('uxp').shell.openExternal(url,text)}))||null;
   try{adoptSource();}catch(e){$('currentSizeInfo').textContent='Sin origen: '+(e.message||e);status('Abre tu diseño y pulsa Usar documento actual.');}controls();
-  watchDocuments();
+  attempt('watchDocuments',watchDocuments);
+  reportStartup();
 }
 // Follow the active document: Photoshop events (when available) and panel focus.
 let watchTimer=null;
@@ -644,15 +658,15 @@ function syncViews(){
  syncSwatches();
  const mode=$('viewMode').value;
  for(const [id,value]of [['viewOriginal','original'],['viewGarment','garment'],['viewTransparent','transparent'],['viewMask','mask']]){
-  const active=mode===value||(value==='garment'&&['compare','beforeGarment'].includes(mode));$(id).className=active?'active':'';$(id).selected=active;
-  if($(id).setAttribute)$(id).setAttribute('aria-pressed',String(active));
+  const active=mode===value||(value==='garment'&&['compare','beforeGarment'].includes(mode));put($(id),'className',active?'active':'');put($(id),'selected',active);
+  putAttr($(id),'aria-pressed',String(active));
  }
  $('compareEnabled').checked=mode==='compare';
 }
 function syncCleanup(){
  for(const [id,value]of [['cleanupNone','none'],['cleanupLow','low'],['cleanupStandard','standard'],['cleanupHigh','high']]){
-  const active=$('cleanup').value===value;$(id).className=active?'active':'';$(id).selected=active;
-  if($(id).setAttribute)$(id).setAttribute('aria-pressed',String(active));
+  const active=$('cleanup').value===value;put($(id),'className',active?'active':'');put($(id),'selected',active);
+  putAttr($(id),'aria-pressed',String(active));
  }
 }
 function initCompact(){
@@ -662,7 +676,7 @@ function initCompact(){
  });
  const repaint=()=>{syncViews();save();if(previewCache)paint(previewCache).catch(e=>{if(!e.superseded)status(e.message);});};
  for(const [button,panel]of [['toggleTools','toolsPanel'],['toggleSource','sourceOptions'],['togglePerformance','performancePanel'],['toggleCalibration','calibrationPanel'],['toggleInk','inkPanel'],['togglePrepareColor','prepareColorAdvanced'],['toggleBatchCommon','batchCommonPanel'],['toggleOutput','outputControls']])$(button).addEventListener('click',()=>{
-  toggle(panel);if($(button).setAttribute)$(button).setAttribute('aria-expanded',String($(panel).className!=='hidden'));
+  toggle(panel);putAttr($(button),'aria-expanded',String($(panel).className!=='hidden'));
  });
  $('editScreen').addEventListener('click',()=>{syncScreen();$('tramaControls').className=$('tramaControls').className.includes('hidden')?'control-card':'control-card hidden';});
  for(const id of ['lpi','angle','shape','halftone']){
