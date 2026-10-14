@@ -92,6 +92,7 @@ function controls(){
   for(const id of ['lpiEdit','angleEdit','shapeEdit'])put($(id),'disabled',busy||!$('halftone').checked);
   put($('widthCM'),'disabled',busy||$('sizeMode').value==='preset');put($('heightCM'),'disabled',busy||$('sizeMode').value==='preset');
   if(updateUI)updateUI.sync(busy);
+  flushDeferred();
 }
 function showStage(next){
   stage=next;for(const [name,id]of [['prepare','stepPrepare'],['edit','stepEdit'],['result','stepResult']])$(id).className=next===name?'current':'';
@@ -108,9 +109,49 @@ function put(el,prop,value){try{el[prop]=value;}catch(e){note('#'+(el&&el.id)+'.
 function putAttr(el,name,value){try{if(el&&el.setAttribute)el.setAttribute(name,value);}catch(e){note('#'+(el&&el.id)+'['+name+']',e);}}
 function attempt(label,fn){try{return fn();}catch(e){note(label,e);}}
 function reportStartup(){
+  flushDeferred();
   if(!startupNotes.size)return;
   const parts=Array.from(startupNotes).slice(0,6).map(([label,message])=>label+' → '+message);
   showError('Avisos de Photoshop al iniciar ('+startupNotes.size+'): '+parts.join(' | '));
+}
+// Photoshop's built-in controls assert when some properties (checked, disabled,
+// selected, value) are written while the control is not displayed. Every
+// Spectrum control gets a guarded accessor: a refused write is remembered (reads
+// return the intended value) and retried when the control becomes visible. Only
+// a write refused while visible is reported.
+const deferredWrites=new Map();
+function isHidden(el){for(let node=el;node&&node.className!==undefined;node=node.parentElement)if(/(^|\s)hidden(\s|$)/.test(String(node.className)))return true;return false;}
+function nativeDescriptor(el,prop){for(let o=el;o;o=Object.getPrototypeOf(o)){const d=Object.getOwnPropertyDescriptor(o,prop);if(d)return d;}return null;}
+function harden(el,prop){
+  const d=nativeDescriptor(el,prop);if(!d||!(d.set||d.writable))return;
+  let held=d.value;const read=d.get?()=>d.get.call(el):()=>held,write=d.set?v=>d.set.call(el,v):v=>{held=v;};
+  const key=el.id+'.'+prop;
+  Object.defineProperty(el,prop,{configurable:true,enumerable:true,
+    get(){return deferredWrites.has(key)?deferredWrites.get(key).value:read();},
+    set(value){try{write(value);deferredWrites.delete(key);}catch(e){deferredWrites.set(key,{el,prop,value,write,error:e});}}});
+}
+function hardenControls(){
+  for(const el of Array.from(document.querySelectorAll('sp-checkbox,sp-textfield,sp-action-button,sp-button,sp-slider'))){
+    const tag=String(el.tagName||el.tag||'').toLowerCase();if(!tag.startsWith('sp-'))continue;
+    for(const prop of ['checked','disabled','selected','value'])attempt('harden #'+el.id+'.'+prop,()=>harden(el,prop));
+  }
+}
+function flushDeferred(){
+  for(const [key,item] of Array.from(deferredWrites)){
+    if(isHidden(item.el))continue;
+    try{item.write(item.value);}catch(e){note('#'+key,e);}
+    deferredWrites.delete(key);
+  }
+}
+// A <select> without a selected option renders blank in Photoshop and reports an
+// empty value, which every setting then rejects. Always show the first option.
+function normalizeSelects(){
+  for(const select of Array.from(document.querySelectorAll('select'))){
+    attempt('select #'+select.id,()=>{
+      const options=select.options||[];
+      if(options.length&&(select.selectedIndex===undefined||select.selectedIndex<0||(select.value===''&&!Array.from(options).some(o=>o.value==='')))) select.selectedIndex=0;
+    });
+  }
 }
 // A failure must never look like "the button does nothing": it is shown in a
 // banner at the top as well as in the status line.
@@ -297,7 +338,7 @@ function openBatch(){
   batchAreaDefaults();batchInfo();showStage('batch');status('Selecciona las imágenes y las tallas que necesita cada una.');
 }
 function init(){
-  attempt('load',load);attempt('showStage',()=>showStage('prepare'));attempt('version',()=>{$('brandVersion').textContent='v'+require('./manifest.json').version;});
+  attempt('hardenControls',hardenControls);attempt('selects',normalizeSelects);attempt('load',load);attempt('showStage',()=>showStage('prepare'));attempt('version',()=>{$('brandVersion').textContent='v'+require('./manifest.json').version;});
   $('useCurrent').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){status(e.message);showError(e.message);}});
   $('detectDoc').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){sourceInfo=null;$('currentSizeInfo').textContent='Sin origen: '+e.message;status(e.message);showError(e.message);controls();}});
   for(const axis of ['width','height'])for(const eventName of ['input','change'])$(axis+'CM').addEventListener(eventName,()=>{
@@ -466,7 +507,7 @@ bootstrap(document,typeof customElements!=='undefined'?customElements:null,init)
 function toCM(value){return $('units').value==='in'?value*2.54:value;}
 function fromCM(value){return $('units').value==='in'?value/2.54:value;}
 function checkInitial(){if(initialToken?.cancelled){const e=Error('Preparación detenida.');e.cancelled=true;throw e;}}
-function toggle(id){$(id).className=$(id).className==='hidden'?'':'hidden';}
+function toggle(id){$(id).className=$(id).className==='hidden'?'':'hidden';flushDeferred();}
 function setFields(o){
  for(const id of settingIDs)if(o[id]!=null){if(checks.includes(id))$(id).checked=o[id];else $(id).value=o[id];}
  displayUnit=$('units').value;
@@ -521,11 +562,11 @@ function refreshPresets(){
   const add=(value,text)=>{const opt=document.createElement('option');opt.value=value;opt.textContent=text;select.appendChild(opt);};
   add('','Personalizado');for(const p of presets.PRESETS)add('preset:'+p.id,p.name);
   for(const r of recipeList)add('recipe:'+r.id,'Receta · '+r.name);
-  select.value=current;
+  select.value=current;attempt('presetSelect',()=>{if(select.selectedIndex<0)select.selectedIndex=0;});
 }
 function refreshRecipes(){
  if(typeof document.createElement!=='function')return;
- refreshPresets();
+ refreshPresets();attempt('selects',normalizeSelects);
  for(const id of ['recipeSelect','imageRecipe']){
   const current=$(id).value;$(id).innerHTML='';const empty=document.createElement('option');empty.value='';empty.textContent=id==='imageRecipe'?'Ajustes comunes':'Elegir receta…';$(id).appendChild(empty);
   for(const recipe of recipeList){const opt=document.createElement('option');opt.value=recipe.id;opt.textContent=recipe.name;$(id).appendChild(opt);}$(id).value=current;

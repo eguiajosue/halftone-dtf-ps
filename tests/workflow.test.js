@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm');
 const {validate}=require('../plugin/engine');
-function fixture({refuse=[]}={}){
+function fixture({refuse=[],blankSelects=[]}={}){
   const html=fs.readFileSync(require.resolve('../plugin/index.html'),'utf8'),elements={},calls=[];
   for(const m of html.matchAll(/<([\w-]+)([^>]*\bid="([^"]+)"[^>]*)>/g)){
     const [,tag,attrs,id]=m,el={style:{},id,tag,type:(attrs.match(/type="([^"]+)"/)||[])[1]||'text',value:(attrs.match(/value="([^"]*)"/)||[])[1]||'',checked:/\bchecked\b/.test(attrs),className:(attrs.match(/class="([^"]*)"/)||[])[1]||'',disabled:false,textContent:'',src:'',listeners:{}};
@@ -14,7 +14,12 @@ function fixture({refuse=[]}={}){
     el.emit=async(name,event={})=>{for(const fn of el.listeners[name]||[])await fn({target:el,...event});};elements[id]=el;
   }
   // Built-in Photoshop controls assert on some property writes: emulate a control that refuses them.
-  for(const [id,prop] of refuse){const el=elements[id];let held=el[prop];Object.defineProperty(el,prop,{get:()=>held,set:v=>{if(el.__armed!==false)throw Error('false == true');held=v;},configurable:true});}
+  for(const [id,prop,parentId] of refuse){
+    const el=elements[id];let held=el[prop];if(parentId)el.parentElement=elements[parentId];
+    // with a parent: refuse only while that container is hidden (what Photoshop does); without: always
+    Object.defineProperty(el,prop,{get:()=>held,set:v=>{if(parentId?/(^|\s)hidden(\s|$)/.test(elements[parentId].className):el.__armed!==false)throw Error('false == true');held=v;},configurable:true});
+  }
+  for(const id of blankSelects){const el=elements[id];el.options=[{value:'a'},{value:'b'}];el.selectedIndex=-1;}
   const src={data:new Uint8Array([240,80,20,255]),width:1,height:1};
   const size={width:300,height:300,widthCM:2.54,heightCM:2.54};
   const stats={inkPixels:100,coveragePercent:50};
@@ -340,4 +345,25 @@ test('controls that refuse property writes do not stop the panel: listeners stay
  e.widthCM.value='20';await e.widthCM.emit('input');assert.equal(e.heightCM.value,'20.00');
  e.presetSelect.value='preset:dark-fine';await e.presetSelect.emit('change');assert.equal(e.lpi.value,40);
  await e.next.emit('click');assert.equal(calls.filter(c=>c[0]==='begin').length,1);assert.equal(e.editStage.className,'');await e.cancel.emit('click');
+});
+
+test('writes refused while a control sits in a hidden screen are remembered and applied when it is shown; nothing is reported',async()=>{
+ const {elements:e}=fixture({refuse:[['apply','disabled','editStage'],['cleanupStandard','selected','editStage'],['export','disabled','resultStage'],['exportWhite','disabled','resultStage'],['batchCancel','disabled','batchStage']]});
+ assert.equal(e.errorBanner.textContent,'','refusals inside hidden screens are not errors');
+ assert.equal(e.apply.disabled,true,'reads return the intended value even while the write is deferred');
+ await e.next.emit('click');                                     // edit screen shown: deferred writes are applied
+ assert.equal(e.editStage.className,'');assert.equal(e.apply.disabled,false);assert.equal(e.cleanupStandard.selected,true);
+ await e.apply.emit('click');assert.equal(e.resultStage.className,'');assert.equal(e.export.disabled,false);assert.equal(e.exportWhite.disabled,false);
+ assert.equal(e.errorBanner.textContent,'');
+});
+test('a refusal that persists while the control is visible is reported once, naming control and property',async()=>{
+ const {elements:e}=fixture({refuse:[['next','disabled']]});
+ assert.match(e.errorBanner.textContent,/Avisos de Photoshop al iniciar \(1\): #next\.disabled → false == true/);
+});
+test('selects that Photoshop leaves blank get their first option; the hidden size axis is not a visible input',async()=>{
+ const {elements:e}=fixture({blankSelects:['sizeMode','units']});
+ assert.equal(e.sizeMode.selectedIndex,0);assert.equal(e.units.selectedIndex,0);
+ const html=require('node:fs').readFileSync(require.resolve('../plugin/index.html'),'utf8');
+ assert.ok(!/type="hidden"/.test(html),'Photoshop draws type=hidden inputs as text fields');assert.match(html,/id="sizeAxis" class="hidden"/);
+ for(const block of html.match(/<select\b[^>]*>[\s\S]*?<\/select>/g))assert.match(block,/<option[^>]*\bselected\b/,'explicit default option');
 });

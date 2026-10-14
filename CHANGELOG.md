@@ -1,5 +1,15 @@
 # Historial
 
+## 0.7.5 RC — 2026-10-14
+
+Correcciones a partir de la primera captura real de Photoshop con 0.7.4 (el semitono ya se creaba, pero el panel mostraba 15 avisos y varios defectos):
+
+- **Escrituras rechazadas en pantallas ocultas.** Los controles nativos de Photoshop hacen una aserción interna al recibir `disabled`, `selected`, `checked` o `value` mientras no se muestran (los avisos nombraban `#apply`, `#export`, `#exportWhite`, `#batchCancel`, `#cleanupStandard`, todos en pantallas ocultas). Cada control Spectrum tiene ahora un acceso protegido: una escritura rechazada se recuerda (las lecturas devuelven el valor pretendido) y se reintenta al mostrarse el control; solo se avisa si el rechazo persiste con el control visible. Cubre también todos los manejadores, no solo el arranque.
+- **Desplegables en blanco.** Photoshop dibuja un `<select>` sin opción marcada en blanco y devuelve un valor vacío, de modo que todos los ajustes se rechazaban («Forma o nivel de limpieza inválidos», que se mostraba como «Sin origen»). Cada desplegable estático tiene ahora una opción marcada y los dinámicos (presets, recetas) se normalizan al construirse.
+- **Campo de texto «width».** Photoshop dibuja `<input type="hidden">` como un campo de texto; el eje de medida ya no es un campo visible.
+- **Cabecera desarmada** (título partido, pasos en vertical, aviso solapado): la cabecera es ahora una columna explícita y los textos de etiquetas se alinean a la izquierda.
+- Tres pruebas nuevas (escrituras diferidas hasta mostrar la pantalla, rechazos persistentes y desplegables en blanco). 191 pruebas.
+
 ## 0.7.4 RC — 2026-10-14
 
 **Arranque tolerante a los controles de Photoshop.** Con 0.7.3 el panel mostró «Error al iniciar el panel: false == true [AssertionError … attributeChangedCallback (uxp-internal/domjs_scripts)]»: un control nativo de Photoshop rechaza (con una aserción interna) alguna escritura de propiedad durante el arranque, y como ocurría antes de conectar los botones, el panel quedaba inerte. Ahora cada escritura de `disabled`, `selected`, `className`, `checked` o `value` sobre los controles que se tocan al iniciar (`controls`, `syncViews`, `syncCleanup`, `syncSliders`, `load`, actualizaciones y `aria-*`) está protegida, y las fases de arranque (`load`, `showStage`, actualizaciones, `initExtras`, `initCompact`, detección de documentos) se ejecutan aisladas. Si Photoshop rechaza algo, el panel sigue y el aviso rojo nombra el control y la propiedad exactos («Avisos de Photoshop al iniciar (n): #viewOriginal.selected → …»). El informe de un fallo fatal incluye ahora hasta cinco líneas de la pila. Prueba nueva con controles que rechazan escrituras. 188 pruebas.

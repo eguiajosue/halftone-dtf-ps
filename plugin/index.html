@@ -33,7 +33,7 @@
         <section id="sourceOptions" class="hidden">
           <h2>Origen</h2>
           <label>Procesar<select id="source">
-              <option value="layer">Capa seleccionada</option>
+              <option selected="" value="layer">Capa seleccionada</option>
               <option value="composite">Composición visible</option>
             </select>
           </label>
@@ -50,7 +50,7 @@
         <section id="performancePanel" class="hidden">
           <h2>Rendimiento</h2>
           <label>Memoria<select id="memoryMode">
-              <option value="auto">Automática · caché temporal para archivos grandes</option>
+              <option selected="" value="auto">Automática · caché temporal para archivos grandes</option>
               <option value="disk">Siempre usar caché en disco</option>
             </select>
           </label>
@@ -101,7 +101,7 @@
       <section class="hidden" id="recipesPanel">
         <h2>Recetas del taller</h2>
         <label>Receta guardada<select id="recipeSelect">
-            <option value="">Elegir receta…</option>
+            <option selected="" value="">Elegir receta…</option>
           </select>
         </label>
         <div class="row">
@@ -163,7 +163,7 @@
         <div class="stage-content" id="prepareContent">
         <section class="prepare-card" id="presetCard">
           <label>Preset<select id="presetSelect">
-              <option value="">Personalizado</option>
+              <option selected="" value="">Personalizado</option>
             </select>
           </label>
           <p class="hint" id="presetNote"></p>
@@ -176,19 +176,19 @@
             <sp-action-button size="s" quiet id="resetSize">Tamaño original</sp-action-button>
           </div>
           <label>Medida<select id="sizeMode">
-              <option value="custom">A medida</option>
+              <option selected="" value="custom">A medida</option>
               <option value="preset">Por talla y posición</option>
             </select>
           </label>
           <div id="presetControls" class="hidden">
             <label>Prenda<select id="garment">
-                <option value="adult">Adulto unisex</option>
+                <option selected="" value="adult">Adulto unisex</option>
                 <option value="child">Infantil</option>
               </select>
             </label>
             <div class="row">
               <label>Posición<select id="placement">
-                  <option value="front">Frontal completo</option>
+                  <option selected="" value="front">Frontal completo</option>
                   <option value="back">Espalda completa</option>
                   <option value="chest">Pecho izquierdo</option>
                   <option value="sleeve">Manga</option>
@@ -215,12 +215,12 @@
             <label>Alto<input id="heightCM" max="100" min="0.01" step="0.01" type="number">
             </label>
             <label class="unit-select">Unidad<select id="units">
-                <option value="cm">cm</option>
+                <option selected="" value="cm">cm</option>
                 <option value="in">in</option>
               </select>
             </label>
           </div>
-          <input id="sizeAxis" type="hidden" value="width">
+          <input id="sizeAxis" class="hidden" type="text" value="width" tabindex="-1" aria-hidden="true">
           <p class="hint" id="pixelInfo">Salida a 300 ppp.</p>
           <p class="hidden" id="upscaleInfo"></p>
           <p class="hidden">Se dimensiona el lienzo completo. Recorta márgenes vacíos para medir solo el arte.</p>
@@ -228,7 +228,7 @@
         <section class="control-card" id="prepareTrama">
           <div class="section-heading"><span class="section-index">02</span><h2>Trama de semitonos</h2></div>
           <label>Forma<select id="shape">
-              <option value="round">Redonda</option>
+              <option selected="" value="round">Redonda</option>
               <option value="ellipse">Elipse 2:1</option>
               <option value="square">Cuadrada</option>
               <option value="diamond">Diamante</option>
@@ -285,7 +285,7 @@
         </div>
         <section id="tramaControls" class="control-card hidden">
           <label>Forma<select id="shapeEdit">
-              <option value="round">Redonda</option>
+              <option selected="" value="round">Redonda</option>
               <option value="ellipse">Elipse 2:1</option>
               <option value="square">Cuadrada</option>
               <option value="diamond">Diamante</option>
@@ -399,7 +399,7 @@
         <section class="control-card hidden" id="protectionControls">
           <h2>Protección de detalles</h2>
           <label>Modo<select id="protection">
-              <option value="off">Desactivada</option>
+              <option selected="" value="off">Desactivada</option>
               <option value="edges">Automática · bordes duros y trazos finos</option>
               <option value="selection">Selección capturada · conservar color sólido</option>
             </select>
@@ -460,7 +460,7 @@
           </div>
           <div class="row">
             <label>Zoom visual<select id="previewZoom">
-                <option value="fit">Ajustar al panel</option>
+                <option selected="" value="fit">Ajustar al panel</option>
                 <option value="100">100% · vista JPEG</option>
                 <option value="200">200% · vista JPEG</option>
               </select>
@@ -535,21 +535,21 @@
             <sp-action-button size="s" quiet id="removeBatchFile">Quitar imagen elegida</sp-action-button>
           </div>
           <label>Imagen para excepciones<select id="batchImageIndex">
-              <option value="0">Sin imágenes</option>
+              <option selected="" value="0">Sin imágenes</option>
             </select>
           </label>
           <sp-action-button size="s" quiet id="toggleAssignment">Tallas y receta de esta imagen</sp-action-button>
           <div class="hidden" id="assignmentPanel">
             <sp-checkbox size="s" class="check" checked="" id="imageUseCommon">Usar tallas y posición comunes</sp-checkbox>
             <label>Prenda de esta imagen<select id="imageGarment">
-                <option value="adult">Adulto unisex</option>
+                <option selected="" value="adult">Adulto unisex</option>
                 <option value="child">Infantil</option>
               </select>
             </label>
             <div class="chips" id="imageSizes"></div>
             <div class="chips" id="imagePositions"></div>
             <label>Receta de esta imagen<select id="imageRecipe">
-                <option value="">Ajustes comunes</option>
+                <option selected="" value="">Ajustes comunes</option>
               </select>
             </label>
             <sp-checkbox size="s" class="check" id="imageOwnColor">Color distinto para esta imagen</sp-checkbox>
@@ -563,12 +563,12 @@
           <h2>Tallas y áreas máximas · cm</h2>
           <sp-action-button size="s" quiet id="toggleBatchAreas">Editar medidas por talla</sp-action-button>
           <label>Prenda común<select id="batchGarment">
-              <option value="adult">Adulto unisex</option>
+              <option selected="" value="adult">Adulto unisex</option>
               <option value="child">Infantil</option>
             </select>
           </label>
           <label>Posición<select id="batchPlacement">
-              <option value="front">Frontal completo</option>
+              <option selected="" value="front">Frontal completo</option>
               <option value="back">Espalda completa</option>
               <option value="chest">Pecho izquierdo</option>
               <option value="sleeve">Manga</option>
@@ -663,7 +663,7 @@
             </label>
           </div>
           <label>Forma<select id="shapeBatch">
-              <option value="round">Redonda</option>
+              <option selected="" value="round">Redonda</option>
               <option value="ellipse">Elipse 2:1</option>
               <option value="square">Cuadrada</option>
               <option value="diamond">Diamante</option>
@@ -684,7 +684,7 @@
             </select>
           </label>
           <label>Protección<select id="batchProtection">
-              <option value="off">Desactivada</option>
+              <option selected="" value="off">Desactivada</option>
               <option value="edges">Automática · bordes y trazos</option>
             </select>
           </label>
