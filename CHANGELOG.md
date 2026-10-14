@@ -1,5 +1,9 @@
 # Historial
 
+## 0.7.3 RC — 2026-10-14
+
+**El panel ya no se bloquea si faltan los controles Spectrum.** Al arrancar, si alguna etiqueta Spectrum no estaba en `customElements`, el panel desactivaba *todos* los controles (campos de medidas, botones, cuentagotas) y solo escribía un aviso pequeño en la línea de estado; en Photoshop eso dejaba el panel inerte sin ningún texto rojo. Ahora arranca siempre con los controles nativos de Photoshop y lo indica en el aviso superior («Modo compatible: …»). Si el arranque falla, el motivo aparece en el aviso rojo («Error al iniciar el panel: … [lugar]»); `boot.js` (se carga primero) escribe en ese aviso cualquier error de script o promesa rechazada. La cabecera muestra la versión en ejecución (`v0.7.3`) y la línea de estado empieza en «Iniciando panel…», de modo que si se queda así o falta la versión se sabe que el script no cargó o que se ejecuta una compilación anterior. 187 pruebas.
+
 ## 0.7.2 RC — 2026-10-14
 
 **Medidas ancladas al tamaño de la imagen original.** El tamaño inicial ya no es el que quedó guardado de una sesión anterior: al detectar un documento (o uno distinto) el ancho y el alto arrancan en el tamaño de la imagen a 300 ppp, el mismo que muestra «Tamaño actual a 300 ppp» (un original de más de 100 cm arranca reducido a ese límite). Ancho y alto van ligados a su proporción en ambos sentidos, en cm y en pulgadas, y también al confirmar el campo (`change`). Releer el mismo documento, o elegir otra capa, conserva el tamaño que estés editando y su eje de referencia; un documento distinto vuelve a su tamaño original. Botones visibles en Preparar: **Actualizar documento** y **Tamaño original**. 184 pruebas.

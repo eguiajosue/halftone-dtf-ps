@@ -323,3 +323,8 @@ test('inches stay anchored too, and an original larger than 100 cm starts scaled
  doc={documentID:9,layerID:1,name:'Enorme',width:15000,height:6000,dpi:300,widthCM:127};e.units.value='cm';await e.units.emit('change');await e.detectDoc.emit('click');
  assert.equal(e.widthCM.value,'100.00');assert.equal(e.heightCM.value,'40.00');assert.equal(e.errorBanner.textContent,'');
 });
+
+test('the header shows the running version and the panel leaves the starting message',async()=>{
+ const {elements:e}=fixture();assert.equal(e.brandVersion.textContent,'v'+require('../plugin/manifest.json').version);
+ assert.notEqual(e.status.textContent,'Iniciando panel…');
+});

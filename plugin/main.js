@@ -284,7 +284,7 @@ function openBatch(){
   batchAreaDefaults();batchInfo();showStage('batch');status('Selecciona las imágenes y las tallas que necesita cada una.');
 }
 function init(){
-  load();showStage('prepare');
+  load();showStage('prepare');$('brandVersion').textContent='v'+require('./manifest.json').version;
   $('useCurrent').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){status(e.message);showError(e.message);}});
   $('detectDoc').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){sourceInfo=null;$('currentSizeInfo').textContent='Sin origen: '+e.message;status(e.message);showError(e.message);controls();}});
   for(const axis of ['width','height'])for(const eventName of ['input','change'])$(axis+'CM').addEventListener(eventName,()=>{

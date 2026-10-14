@@ -1,6 +1,7 @@
-Candidato 0.7.2 de Halftone DTF para Photoshop 25.0 o superior (Windows). **Prerelease: no es una versión estable y no se instala solo.**
+Candidato 0.7.3 de Halftone DTF para Photoshop 25.0 o superior (Windows). **Prerelease: no es una versión estable y no se instala solo.**
 
-## Cambios de 0.7.2 y 0.7.1 (sobre 0.7.0)
+## Cambios de 0.7.3, 0.7.2 y 0.7.1 (sobre 0.7.0)
+- 0.7.3: el panel ya no se bloquea si faltan los controles Spectrum (antes desactivaba todos los campos y botones); los errores de arranque salen en el aviso rojo y la cabecera muestra la versión.
 - 0.7.2: las medidas parten del tamaño de la imagen original (a 300 ppp) y el ancho y el alto van anclados por proporción; botones **Actualizar documento** y **Tamaño original**.
 - Corrige que las medidas, el cuentagotas y «Crear vista de semitonos» no respondieran cuando el documento se abre después del panel o cambia: el origen se vuelve a leer al usarlos y con los eventos de Photoshop, y el panel muestra un aviso visible («Sin origen: …») con el botón **Usar documento actual**.
 - El selector de color se abre como diálogo interactivo.
@@ -19,13 +20,13 @@ Candidato 0.7.2 de Halftone DTF para Photoshop 25.0 o superior (Windows). **Prer
 Detalle, mediciones y límites: `CHANGELOG.md`, `docs/AUDITORIA-DTPREP.md` y `docs/CALIBRACION-Y-CALIDAD-DTF.md`.
 
 ## Archivos
-- `Halftone-DTF-0.7.2.ccx`: candidato de instalación (ZIP reproducible; no empaquetado por herramientas de Adobe).
-- `Halftone-DTF-0.7.2-proyecto.zip`: código, documentación y controles ya compilados.
+- `Halftone-DTF-0.7.3.ccx`: candidato de instalación (ZIP reproducible; no empaquetado por herramientas de Adobe).
+- `Halftone-DTF-0.7.3-proyecto.zip`: código, documentación y controles ya compilados.
 - `Halftone-DTF-Updater-Windows.zip`: acompañante de Windows.
 - `SHA256SUMS.txt`: checksum del CCX.
 
 ## Qué está validado y qué no
-- **Automático:** 184 pruebas JavaScript, 5 de distribución Python, escenarios de interfaz con Spectrum real en Chromium y las del acompañante Windows en CI. El host de Photoshop y Adobe UPIA están **simulados**.
+- **Automático:** 187 pruebas JavaScript, 5 de distribución Python, escenarios de interfaz con Spectrum real en Chromium y las del acompañante Windows en CI. El host de Photoshop y Adobe UPIA están **simulados**.
 - **No validado:** nada de esto se ha ejecutado en Photoshop real. Quedan por comprobar en Windows con Photoshop 25+: las operaciones de capa y máscara (`make channel`, `putLayerMask`, capa de relleno, `userMaskEnabled`), el arrastre del slider de niveles, la creación de documentos grandes de pliegos, el tiempo real por ajuste y el comportamiento del historial. Si Photoshop rechaza una operación de máscara, el panel lo avisa y vuelve al método anterior.
 - **Sin validar físicamente:** adherencia, lavado, RIP, polaridad del canal blanco y calibración de tinta. Los valores iniciales de consumo de tinta son aproximados; calíbralos con tu impresora.
 - Sin aprobación de Marketplace. No es elegible para actualización automática.

@@ -9,7 +9,7 @@
     <main>
       <header>
         <div class="brand">
-          <div class="brand-name"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="5" cy="5" r="3" fill="#a9d7c6"/><circle cx="16" cy="5" r="2.5" fill="#a9d7c6"/><circle cx="5" cy="16" r="2" fill="#a9d7c6"/><circle cx="16" cy="16" r="1.5" fill="#a9d7c6"/></svg><h1>HALFTONE <span>DTF</span></h1></div>
+          <div class="brand-name"><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><circle cx="5" cy="5" r="3" fill="#a9d7c6"/><circle cx="16" cy="5" r="2.5" fill="#a9d7c6"/><circle cx="5" cy="16" r="2" fill="#a9d7c6"/><circle cx="16" cy="16" r="1.5" fill="#a9d7c6"/></svg><h1>HALFTONE <span>DTF</span></h1><span id="brandVersion" class="brand-version"></span></div>
           <span id="stageBadge" class="stage-badge">Preparar</span>
           <sp-action-button size="s" quiet id="toggleTools" class="menu-button" aria-label="Herramientas" aria-expanded="false">☰</sp-action-button>
         </div>
@@ -786,10 +786,11 @@
         </div>
       </div>
       <sp-action-button size="s" quiet class="hidden" id="cancelPreparation">Detener preparación</sp-action-button>
-      <p id="status" role="status">Abre tu diseño en Photoshop para empezar.</p>
+      <p id="status" role="status">Iniciando panel…</p>
       <footer id="footerVersion"></footer>
     </main>
     </sp-theme>
+    <script src="boot.js"></script>
     <script src="vendor/spectrum.js"></script>
     <script src="main.js"></script>
   </body>
