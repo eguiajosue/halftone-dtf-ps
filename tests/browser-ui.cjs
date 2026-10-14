@@ -61,6 +61,17 @@ async function browserExecutable(){
  await page.locator('#outputWhite').fill('160');await page.locator('#outputWhite').dispatchEvent('input');
  assert.equal(await page.locator('#outputWhite').inputValue(),'160');
  assert.match(await page.locator('#lpcInfo').innerText(),/LPC/);
+ // Unified Levels slider: drag the white handle, then the midtone handle, with a real pointer.
+ const track=await page.locator('#inputLevels').boundingBox(),at=v=>track.x+track.width*v/255,mid=track.y+track.height/2;
+ const white=await page.locator('#inputWhiteHandle').boundingBox();
+ await page.mouse.move(white.x+white.width/2,white.y+white.height/2);await page.mouse.down();await page.mouse.move(at(180),mid,{steps:4});await page.mouse.up();
+ const whiteValue=Number(await page.locator('#inputWhite').inputValue());assert(Math.abs(whiteValue-180)<=2,'white '+whiteValue);
+ const black=Number(await page.locator('#inputBlack').inputValue()),target=black+(whiteValue-black)*0.5;
+ const midHandle=await page.locator('#inputMidtoneHandle').boundingBox();
+ await page.mouse.move(midHandle.x+midHandle.width/2,midHandle.y+midHandle.height/2);await page.mouse.down();await page.mouse.move(at(target),mid,{steps:4});await page.mouse.up();
+ assert(Math.abs(Number(await page.locator('#inputMidtone').inputValue())-1)<=.05,'midtone '+await page.locator('#inputMidtone').inputValue());
+ await page.locator('#inputBlack').fill('7');await page.locator('#inputBlack').dispatchEvent('input');await page.locator('#inputMidtone').fill('2');await page.locator('#inputMidtone').dispatchEvent('input');
+ await page.locator('#inputWhite').fill('100');await page.locator('#inputWhite').dispatchEvent('input');
  // Test real SWC shadow-input event propagation and HEX value synchronization.
  await page.locator('#tabColor').click();const input=page.locator('#keyEdit input');await input.fill('#334455');await input.dispatchEvent('input');
  assert.equal(await page.locator('#key').evaluate(el=>el.value),'#334455');assert.equal(await page.locator('#keyHexCaption').innerText(),'#334455');

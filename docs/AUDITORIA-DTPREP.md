@@ -66,7 +66,8 @@ Medición en CPU con Node 22 (sin la lectura y escritura nativas de Photoshop), 
   - "Procesar lote" pasa al menú ☰.
 - **Ajustar:**
   - Los colores de knockout y de prenda ocupan dos filas, con el vínculo "Prenda = eliminado".
-  - Niveles, salida y sombras quedan siempre visibles, con el valor y el slider en la misma fila.
+  - Niveles unificados como en DTPrep: un solo slider con tres tiradores (negro, medios, blanco) y otro con dos para la salida (negro, blanco), con sus valores debajo (`plugin/levels-slider.js`). El tirador de medios se dibuja en 0,5^gamma entre negro y blanco, igual que en Photoshop (gamma 2 queda a un cuarto). Se puede arrastrar, hacer clic en la pista para mover el tirador más cercano o usar las flechas del teclado.
+  - Sombras queda siempre visible.
   - La vista **Alfa** se llama igual que en DTPrep.
   - Espera de 40 ms antes de recalcular (antes 100 ms).
 - **Sin borrar nada:** lotes, recetas, proyectos, inspector, protección, rendimiento, actualizaciones y ayuda siguen accesibles en el menú ☰ o en los paneles plegables.
@@ -74,5 +75,6 @@ Medición en CPU con Node 22 (sin la lectura y escritura nativas de Photoshop), 
 ## Pendiente de validar en Photoshop (Windows, 25.0 o superior)
 - `make channel` con `revealAll`, `imaging.putLayerMask` con imagen en escala de grises de 1 canal, y `make contentLayer solidColorLayer` junto con `Layer.move` (PLACEAFTER).
 - `set layer userMaskEnabled` y `set solidColorLayer` sobre la capa de relleno seleccionada.
+- Arrastre del slider de niveles con eventos de puntero de UXP y el degradado de la pista (si UXP no dibuja `linear-gradient`, se ve gris liso).
 - Tiempo real de cada ajuste a 13 MP y comportamiento del historial.
 - Si cualquiera de estas operaciones falla, el panel avisa y usa el método anterior. Registrar la evidencia en `release-validation.json`.

@@ -258,38 +258,29 @@
           <sp-checkbox size="s" class="check" id="halftoneEdit" checked="">Activar trama</sp-checkbox>
         </section>
         <section class="control-card" id="levelsControls">
-          <div class="section-heading"><h2>Cobertura de la trama</h2></div>
-          <div class="levels-row">
-            <div class="level">
-              <label>Entrada negro<input id="inputBlack" max="254" min="0" step="1" type="number" value="7">
-              </label>
-              <sp-slider id="inputBlackSlider" max="254" min="0" show-value="false" value="7"></sp-slider>
-            </div>
-            <div class="level">
-              <label>Medios tonos<input id="inputMidtone" max="9.99" min="0.1" step="0.01" type="number" value="2">
-              </label>
-              <sp-slider id="inputMidtoneSlider" max="9.99" min="0.1" show-value="false" step="0.01" value="2"></sp-slider>
-            </div>
-            <div class="level">
-              <label>Entrada blanco<input id="inputWhite" max="255" min="1" step="1" type="number" value="100">
-              </label>
-              <sp-slider id="inputWhiteSlider" max="255" min="1" show-value="false" value="100"></sp-slider>
-            </div>
+          <div class="section-heading"><h2>Niveles · negro / medios / blanco</h2></div>
+          <div class="levels-slider" id="inputLevels" role="group" aria-label="Niveles de entrada">
+            <div class="levels-track input-track"></div>
+            <span class="levels-handle black" id="inputBlackHandle" tabindex="0" role="slider" aria-label="Entrada negro" aria-valuemin="0" aria-valuemax="253"></span>
+            <span class="levels-handle mid" id="inputMidtoneHandle" tabindex="0" role="slider" aria-label="Medios tonos" aria-valuemin="0.1" aria-valuemax="9.99"></span>
+            <span class="levels-handle white" id="inputWhiteHandle" tabindex="0" role="slider" aria-label="Entrada blanco" aria-valuemin="2" aria-valuemax="255"></span>
+          </div>
+          <div class="levels-values">
+            <input id="inputBlack" aria-label="Entrada negro" max="254" min="0" step="1" type="number" value="7">
+            <input id="inputMidtone" aria-label="Medios tonos" max="9.99" min="0.1" step="0.01" type="number" value="2">
+            <input id="inputWhite" aria-label="Entrada blanco" max="255" min="1" step="1" type="number" value="100">
           </div>
           <sp-action-button size="s" quiet id="toggleOutput" class="quiet hidden" aria-expanded="true">Salida y sombras</sp-action-button>
           <div id="outputControls">
-          <h2>Niveles de salida</h2>
-          <div class="levels-row">
-            <div class="level">
-              <label>Salida negro<input id="outputBlack" max="255" min="0" step="1" type="number" value="0">
-              </label>
-              <sp-slider id="outputBlackSlider" max="255" min="0" show-value="false" value="0"></sp-slider>
-            </div>
-            <div class="level">
-              <label>Salida blanco<input id="outputWhite" max="255" min="0" step="1" type="number" value="255">
-              </label>
-              <sp-slider id="outputWhiteSlider" max="255" min="0" show-value="false" value="255"></sp-slider>
-            </div>
+          <h2 class="levels-caption">Niveles de salida · forzar trama</h2>
+          <div class="levels-slider" id="outputLevels" role="group" aria-label="Niveles de salida">
+            <div class="levels-track output-track"></div>
+            <span class="levels-handle black" id="outputBlackHandle" tabindex="0" role="slider" aria-label="Salida negro" aria-valuemin="0" aria-valuemax="253"></span>
+            <span class="levels-handle white" id="outputWhiteHandle" tabindex="0" role="slider" aria-label="Salida blanco" aria-valuemin="2" aria-valuemax="255"></span>
+          </div>
+          <div class="levels-values two">
+            <input id="outputBlack" aria-label="Salida negro" max="255" min="0" step="1" type="number" value="0">
+            <input id="outputWhite" aria-label="Salida blanco" max="255" min="0" step="1" type="number" value="255">
           </div>
           <p class="hidden">Blanco = mayor cobertura. Reducir el blanco de salida fuerza trama en zonas sólidas. Los colores originales se conservan.</p>
         <div class="level">

@@ -6,7 +6,7 @@ Documento de trabajo con dos capas, como en la referencia DTPrep: arte con **má
 
 Motor en caché (`plugin/live-render.js`): cobertura y umbrales en 16 bits por píxel, niveles en tabla y limpieza de partículas acotada con las mismas islas eliminadas. A 13 MP, un ajuste baja de ~2,1 s a ~0,23 s con limpieza Normal (~0,03 s sin limpieza), medido en CPU. Espera de 40 ms antes de recalcular.
 
-Interfaz: tamaño actual a 300 ppp y equivalencia en LPC en Preparar; niveles, salida y sombras visibles en una fila cada uno; vista Alfa; lotes en el menú ☰. 137 pruebas JavaScript. Detalles y pendientes nativos en `docs/AUDITORIA-DTPREP.md`.
+Interfaz: tamaño actual a 300 ppp y equivalencia en LPC en Preparar; **un solo slider de niveles con tiradores negro / medios / blanco** y otro de salida negro / blanco, como en Photoshop y DTPrep (medios en 0,5^gamma; arrastre, clic en la pista y teclado); sombras visibles; vista Alfa; lotes en el menú ☰. 140 pruebas JavaScript. Detalles y pendientes nativos en `docs/AUDITORIA-DTPREP.md`.
 
 ## 0.6.4 RC — 2026-10-09
 

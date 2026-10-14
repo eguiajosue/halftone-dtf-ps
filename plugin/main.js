@@ -42,7 +42,8 @@ function syncSwatches(){
  }catch(_){}
 }
 function syncScreen(){const lpi=Number($('lpi').value);if(Number.isFinite(lpi)&&lpi>0)$('lpcInfo').textContent=(lpi/2.54).toFixed(1)+' líneas por cm (LPC)';for(const id of ['lpi','angle','shape'])$(id+'Edit').value=$(id).value;$('halftoneEdit').checked=$('halftone').checked;$('editScreen').textContent='Trama · '+$('lpi').value+' LPI · '+$('angle').value+'°';}
-function syncSliders(){for(const id of [...Object.keys(levels),'shadowBoost','colorBoost'])$(id+'Slider').value=Number($(id).value);}
+const levelSliders=[];
+function syncSliders(){for(const slider of levelSliders)slider.render();for(const id of ['shadowBoost','colorBoost'])$(id+'Slider').value=Number($(id).value);}
 function ensureEditDefaults(){
   if(!['original','garment','beforeGarment','compare','transparent','mask','removed','protection'].includes($('viewMode').value))$('viewMode').value='garment';
   try{hexRGB($('previewColor').value);}catch(_){$('previewColor').value='#202020';}
@@ -212,11 +213,18 @@ function init(){
     $(id+'Edit').addEventListener(event,()=>{if(id==='knockout')$(id).checked=$(id+'Edit').checked;else $(id).value=$(id+'Edit').value;syncSwatches();queue();});
   }
   $('foreground').addEventListener('click',foreground);$('foregroundEdit').addEventListener('click',foreground);
+  // One slider for black / midtone / white and one for output, as in DTPrep.
+  const {createLevelsSlider}=require('./levels-slider'),value=id=>Number($(id).value);
+  levelSliders.push(createLevelsSlider({track:$('inputLevels'),doc:document,
+    handles:{black:$('inputBlackHandle'),mid:$('inputMidtoneHandle'),white:$('inputWhiteHandle')},
+    get:()=>({black:value('inputBlack'),mid:value('inputMidtone'),white:value('inputWhite')}),
+    set:v=>{$('inputBlack').value=v.black;$('inputMidtone').value=v.mid;$('inputWhite').value=v.white;queue();}}));
+  levelSliders.push(createLevelsSlider({track:$('outputLevels'),doc:document,gap:0,
+    handles:{black:$('outputBlackHandle'),white:$('outputWhiteHandle')},
+    get:()=>({black:value('outputBlack'),white:value('outputWhite')}),
+    set:v=>{$('outputBlack').value=v.black;$('outputWhite').value=v.white;queue();}}));
   for(const id of Object.keys(levels)){
-    $(id+'Slider').addEventListener('input',()=>{$(id).value=Number($(id+'Slider').value);queue();});
-    // change catches keyboard commits and host versions with discrete events.
-    $(id+'Slider').addEventListener('change',()=>{if(Number($(id).value)!==Number($(id+'Slider').value)){$(id).value=Number($(id+'Slider').value);queue();}});
-    $(id).addEventListener('input',()=>{$(id+'Slider').value=Number($(id).value);queue();});
+    $(id).addEventListener('input',()=>{syncSliders();queue();});
   }
   $('resetLevels').addEventListener('click',()=>{for(const [id,value]of Object.entries(levels))$(id).value=value;syncSliders();queue();});
   for(const id of ['lpi','angle','minDiameterMM','focusX','focusY','alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius'])$(id).addEventListener('input',queue);

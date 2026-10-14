@@ -45,8 +45,12 @@ test('Next prepares a processed copy; stage 2 edits knockout and five levels bef
   await e.next.emit('click');assert.equal(e.prepareStage.className,'hidden');assert.equal(e.editStage.className,'');
   assert.equal(calls[0][0],'begin');assert.equal(calls[0][2].widthCM,2.54);
   e.keyEdit.value='#123456';await e.keyEdit.emit('input');assert.equal(e.key.value,'#123456');
-  e.inputMidtoneSlider.value=2;await e.inputMidtoneSlider.emit('input');assert.equal(e.inputMidtone.value,2);
-  e.outputWhiteSlider.value=140;await e.outputWhiteSlider.emit('input');
+  // Unified Levels sliders: keyboard on the midtone handle, drag on the output white handle.
+  await e.inputMidtoneHandle.emit('keydown',{key:'ArrowLeft'});assert.equal(e.inputMidtone.value,2.05);
+  await e.inputMidtoneHandle.emit('keydown',{key:'ArrowRight'});assert.equal(e.inputMidtone.value,2);
+  e.outputLevels.getBoundingClientRect=()=>({left:10,width:255});
+  await e.outputLevels.emit('mousedown',{button:0,clientX:10+140,target:e.outputWhiteHandle});await e.outputLevels.emit('mouseup');
+  assert.equal(e.outputWhiteHandle.style.left,(140/255*100)+'%');
   await e.apply.emit('click');const update=calls.find(c=>c[0]==='update')[1];
   assert.equal(update.key,'#123456');assert.equal(update.inputMidtone,2);assert.equal(update.outputWhite,140);
   assert.equal(e.resultStage.className,'');assert.equal(e.editStage.className,'hidden');assert.ok(calls.some(c=>c[0]==='release'));
