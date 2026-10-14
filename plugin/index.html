@@ -718,6 +718,18 @@
             <sp-checkbox size="s" class="check" id="defringeBatch">Tratar bordes</sp-checkbox>
           </div>
         </section>
+        <sp-checkbox size="s" class="check" id="batchWhite">Exportar también el canal blanco de cada variante (_blanco.png)</sp-checkbox>
+        <div class="row">
+          <label>Contracción · mm<input id="whiteChokeMMBatch" type="number" min="0" max="5" step="0.05" value="0.15">
+          </label>
+          <label>Archivo<select id="whiteFormatBatch">
+              <option value="blackOnWhite" selected>Negro = tinta</option>
+              <option value="alpha">Blanco sobre transparente</option>
+              <option value="whiteOnBlack">Blanco = tinta</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">El blanco se guarda junto a cada PNG, con su misma talla y nombre. Más lento y con más espacio en disco; confirma la polaridad que pide tu RIP.</p>
         <sp-action-button size="s" quiet id="batchPreflight">Verificar archivos y variantes</sp-action-button>
         <p class="hint" id="batchPreflightInfo"></p>
         <sp-action-button size="s" quiet id="batchResume">Reanudar un lote guardado</sp-action-button>

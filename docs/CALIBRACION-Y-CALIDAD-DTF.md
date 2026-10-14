@@ -69,6 +69,14 @@ Cómo funciona: acomodo *skyline* de abajo hacia arriba sobre los diseños orden
 
 Ejemplo con 17 piezas en un rollo de 58 cm: 75 % de aprovechamiento. Azul = girado 90°; los trazos negros son las marcas. Imagen generada por el algoritmo, no por Photoshop.
 
+### Canal blanco en lotes (Lotes → Exportar también el canal blanco)
+Marca la casilla en la pantalla de lotes y elige contracción y formato (se comparten con la pantalla Exportar). Por cada variante se guarda `NNN_imagen_M_front_300ppp.png` y `NNN_imagen_M_front_300ppp_blanco.png` en la carpeta de su talla.
+
+- `reporte.csv` y el avance guardan la ruta del blanco (`whiteOutput`).
+- Si el canal blanco de una variante falla, esa variante queda como error (`Canal blanco: …`) y se borran su PNG y su blanco; el resto del lote sigue.
+- Al reanudar, se valida el PNG y también el blanco. Si falta o está dañado, la variante se rehace con un nombre nuevo (`_r2`).
+- Cuesta tiempo y disco adicionales (lectura del color, contracción y un segundo documento por variante).
+
 ### Límites
 - El acomodo es heurístico: no garantiza el mínimo de film posible. Sin marcas de corte, la separación es lo único que guía el corte.
 - Los diseños se colocan en rectángulos (su caja completa); no se anidan formas irregulares.

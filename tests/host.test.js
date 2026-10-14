@@ -447,3 +447,10 @@ test('measuring files reports size and ppi, and keeps going after an unreadable 
  assert.deepEqual(JSON.parse(JSON.stringify(list[0])),{name:'a.png',width:2953,height:3543,dpi:300});assert.match(list[1].error,/RGB/);assert.equal(list[2].dpi,150);
  assert.deepEqual(f.app.documents.map(d=>d.id),[7],'all measured files closed');
 });
+test('nativeMask:false (batch and self-test) keeps a single flat printable layer even when native layers are available',async()=>{
+ const f=fixture({nativeLayers:true}),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50,nativeMask:false};
+ const s=await f.host.beginSession('layer',o);assert.ok(!s.native);assert.equal(f.result.layers.length,1);assert.equal(f.result.layers[0].mask,undefined);
+ assert.ok(!f.calls.some(c=>c[0]==='batchPlay'),'no layer structure was created');
+ f.app.documents.push(f.result);await f.host.exportPNG(s.documentID,{name:'lote.png'},()=>{},s.size);assert.ok(f.calls.some(c=>c[0]==='png'));
+ const g=fixture({nativeLayers:true}),live=await g.host.beginSession('layer',{...o,nativeMask:true});assert.equal(live.native,true,'interactive sessions still use the mask');
+});

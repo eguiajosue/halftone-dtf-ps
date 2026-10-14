@@ -32,7 +32,7 @@ async function run(parent,check=()=>{},progress=()=>{}){
   const captured=await read(sourceID,undefined,w,h),expected=await processRGBA(captured,w,h,options);
   for(const memoryMode of ['auto','disk']){
    check();progress('Procesando '+memoryMode);const started=Date.now();
-   const session=await host.beginSession('composite',{...options,documentID:sourceID,memoryMode},()=>check());sessions.push(session);
+   const session=await host.beginSession('composite',{...options,documentID:sourceID,memoryMode,nativeMask:false},()=>check());sessions.push(session);
    const actual=await read(session.documentID,session.layerID,w,h);
    if(checksum(actual)!==checksum(expected.data))throw Error('Diferencia de píxeles nativos en modo '+memoryMode);
    report.checks.push({name:'RGBA '+memoryMode,status:'passed',ms:Date.now()-started,checksum:checksum(actual)});

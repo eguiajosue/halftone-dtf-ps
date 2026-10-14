@@ -18,7 +18,7 @@ const colorIDs=['key','knockout','tolerance','softness'];
 let busy=false,stage='prepare',previewCache=null,outputID=null,sourceInfo=null,session=null,live=null,paintRevision=0;
 let batchFiles=[],batchFolder=null,batchToken=null,batchReturnStage='prepare';
 let sheetItems=[],sheetPlan=null,sheetReturnStage='prepare';
-const batchSharedIDs=['key','knockout','tolerance','softness','shape','lpi','angle','cleanup','halftone','alphaThreshold','recover','defringe','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','minDiameterMM',...Object.keys(levels)];
+const batchSharedIDs=['key','knockout','tolerance','softness','shape','lpi','angle','cleanup','halftone','alphaThreshold','recover','defringe','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','minDiameterMM','whiteChokeMM','whiteFormat',...Object.keys(levels)];
 let previewPixels=512;
 let approvedResult=null;
 let initialToken=null,recipeList=[],profileAreas={},lastProject=null,assignments={},resumeRun=null,preflightResult=null;
@@ -82,7 +82,7 @@ function controls(){
   syncCleanup();
   $('next').disabled=busy||!sourceInfo;$('apply').disabled=busy||!session;
   $('export').disabled=busy||outputID===null;$('exportWhite').disabled=busy||outputID===null;$('sheetBuild').disabled=busy||!sheetPlan;$('previewColor').disabled=busy||$('linkBackground').checked;
-  $('batchRun').disabled=busy||!batchFiles.length||!batchFolder;
+  $('batchRun').disabled=busy||!batchFiles.length||!batchFolder;$('whiteChokeMMBatch').disabled=busy||!$('batchWhite').checked;$('whiteFormatBatch').disabled=busy||!$('batchWhite').checked;
   $('batchCancel').disabled=!batchToken||batchToken.cancelled;
   $('cancelPreparation').disabled=!initialToken||initialToken.cancelled;$('cancelPreparation').className=initialToken?'':'hidden';
   $('lpi').disabled=busy||!$('halftone').checked;$('angle').disabled=busy||!$('halftone').checked;$('shape').disabled=busy||!$('halftone').checked;$('alphaThreshold').disabled=busy||$('halftone').checked;
@@ -392,8 +392,9 @@ function init(){
   }));
   $('batchFolder').addEventListener('click',()=>action(async()=>{const selected=await storage.localFileSystem.getFolder();if(selected){batchFolder=selected;$('batchFolderInfo').textContent=selected.nativePath||selected.name;}}));
   $('batchPlacement').addEventListener('change',()=>{batchAreaDefaults();batchInfo();});
+  $('batchWhite').addEventListener('change',()=>{preflightResult=null;controls();});
   for(const size of allSizes){$('batch'+size).addEventListener('change',batchInfo);$('batchWidth'+size).addEventListener('input',()=>{rememberAreas();batchInfo();});$('batchHeight'+size).addEventListener('input',()=>{rememberAreas();batchInfo();});}
-  for(const id of batchSharedIDs)$(id+'Batch').addEventListener((['shape','cleanup'].includes(id)||checks.includes(id))?'change':'input',()=>{
+  for(const id of batchSharedIDs)$(id+'Batch').addEventListener((['shape','cleanup','whiteFormat'].includes(id)||checks.includes(id))?'change':'input',()=>{
     if(checks.includes(id))$(id).checked=$(id+'Batch').checked;else $(id).value=$(id+'Batch').value;
     if(id==='cleanup')$('minDiameterMM').value=LEVELS[$('cleanup').value].minDiameterMM;
     syncColor();save();batchInfo();
@@ -422,7 +423,7 @@ function rememberAreas(){
  for(const size of allSizes){const a=[Number($('batchWidth'+size).value),Number($('batchHeight'+size).value)];if(a.every(v=>Number.isFinite(v)&&v>0&&v<=100))profileAreas[place][size]=a;}
  localStorage.setItem('halftone-areas-v1',JSON.stringify(profileAreas));
 }
-function optionsForBatch(){return {...settings(),protection:$('batchProtection').value};}
+function optionsForBatch(){return {...settings(),protection:$('batchProtection').value,batchWhite:$('batchWhite').checked};}
 function batchAssignments(){
  const commonPositions=$('batchBothSides').checked?['front','back']:[$('batchPlacement').value];
  return batchFiles.map((file,i)=>({...(!assignments[i]?.useCommon?assignments[i]:{}),

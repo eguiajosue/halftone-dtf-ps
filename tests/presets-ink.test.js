@@ -39,5 +39,5 @@ test('solid-equivalent art is measured identically by the engine, the live rende
 });
 test('batch report carries coverage, ink and cost columns',()=>{
  const text=batch.csv([{image:'a.png',size:'M',coveragePercent:41.5,colorML:.25,whiteML:.4,cost:''}]);
- assert.match(text,/dpi,coveragePercent,colorML,whiteML,cost,error\r\n/);assert.match(text,/"41.5","0.25","0.4","",/);
+ assert.match(text,/dpi,coveragePercent,colorML,whiteML,cost,whiteOutput,error\r\n/);assert.match(text,/"41.5","0.25","0.4","",/);
 });

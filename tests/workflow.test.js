@@ -241,3 +241,21 @@ test('result screen exports the white channel with the chosen contraction and fi
  const recipes=require('../plugin/recipes'),r=recipes.entry({name:'RIP',options:{whiteChokeMM:.2,whiteFormat:'whiteOnBlack'}});assert.equal(r.options.whiteFormat,'whiteOnBlack');
  assert.throws(()=>recipes.entry({name:'x',options:{whiteFormat:'rojo'}}),/Opción inválida/);
 });
+
+test('batch screen: white channel controls follow the checkbox and reach every variant with the chosen options',async()=>{
+ const {elements:e,calls,host}=fixture();
+ host.exportWhite=async(id,file,opts,check,progress,size)=>{calls.push(['white',file.name,opts]);await file.write('W');return {};};
+ e.whiteChokeMM.value='0.25';e.whiteFormat.value='whiteOnBlack';
+ await e.openBatch.emit('click');
+ assert.equal(e.whiteChokeMMBatch.value,'0.25');assert.equal(e.whiteFormatBatch.value,'whiteOnBlack','copied from the export screen');
+ assert.equal(e.whiteChokeMMBatch.disabled,true,'disabled until the checkbox is on');
+ e.batchWhite.checked=true;await e.batchWhite.emit('change');assert.equal(e.whiteChokeMMBatch.disabled,false);assert.equal(e.whiteFormatBatch.disabled,false);
+ e.whiteChokeMMBatch.value='0.1';await e.whiteChokeMMBatch.emit('input');e.whiteFormatBatch.value='alpha';await e.whiteFormatBatch.emit('change');
+ assert.equal(e.whiteChokeMM.value,'0.1');assert.equal(e.whiteFormat.value,'alpha','shared with the export screen');
+ await e.batchFiles.emit('click');await e.batchFolder.emit('click');calls.length=0;await e.batchRun.emit('click');
+ assert.match(e.batchProgress.textContent,/4 guardados · 0 errores/);
+ const white=calls.filter(c=>c[0]==='white');assert.equal(white.length,4);
+ for(const w of white){assert.match(w[1],/_blanco\.png$/);assert.equal(w[2].chokeMM,.1);assert.equal(w[2].format,'alpha');}
+ for(const b of calls.filter(c=>c[0]==='begin'))assert.equal(b[2].nativeMask,false);
+ e.batchWhite.checked=false;await e.batchWhite.emit('change');calls.length=0;await e.batchRun.emit('click');assert.equal(calls.filter(c=>c[0]==='white').length,0);
+});
