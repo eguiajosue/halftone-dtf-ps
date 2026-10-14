@@ -1,17 +1,27 @@
-Interfaz renovada con Adobe Spectrum Web Components y wrappers oficiales UXP: botones, acciones, casillas y campos HEX. Preparación numerada, controles espaciados, colores identificados, sliders amplios y Aplicar/Cancelar siempre visibles al desplazar los ajustes. Tamaños mostrados con dos decimales sin perder precisión interna.
+Candidato 0.7.0 de Halftone DTF para Photoshop 25.0 o superior (Windows). **Prerelease: no es una versión estable y no se instala solo.**
 
-Conserva presets por talla, cuentagotas, vistas y comparación en el lienzo, protección de detalles, imágenes grandes, proyectos, recetas y lotes flexibles. Mantiene las optimizaciones del motor de 0.6.3. No se atribuye una mejora adicional de velocidad al cambio de biblioteca.
+## Novedades
+- **Edición en vivo como DTPrep:** el documento de trabajo usa el arte con máscara de capa y un relleno con el color de prenda. Mover niveles, trama o limpieza reescribe solo la máscara (¼ de los datos); las vistas Original / Prenda / Alfa cambian capas sin escribir píxeles. A 13 MP un ajuste baja de ~2,1 s a ~0,23 s de CPU (~0,03 s sin limpieza), medido sin la E/S de Photoshop.
+- **Niveles en un solo slider** con tiradores negro / medios / blanco, y otro para la salida.
+- **Calidad de impresión DTF:** compensación de ganancia de punto a partir de la carta de calibración, rellenar huecos menores en sombras y «sólido desde cobertura %».
+- **Presets de fábrica** en Preparar (camiseta negra, blanca, vintage, líneas, solo quitar fondo) y **estimación de tinta y costo por pieza**.
+- **Canal blanco** exportable en un PNG aparte, con contracción en mm que no borra el blanco bajo puntos pequeños; también **en lotes**.
+- **Pliegos (gang sheet):** varios diseños a 300 ppp en un rollo de ancho fijo, con giro de 90°, separación, marcas de corte opcionales y reparto en varios pliegos.
+- Panel de Preparar y Ajustar más compacto; lotes en el menú ☰.
+- Corrección: los lotes ya no exportan con una capa de prenda opaca bajo el arte.
 
-Archivos:
-- `Halftone-DTF-0.6.4.ccx`: candidato de instalación para Photoshop 25.0 o superior.
-- `Halftone-DTF-0.6.4-proyecto.zip`: código, documentación y controles ya compilados.
+Detalle, mediciones y límites: `CHANGELOG.md`, `docs/AUDITORIA-DTPREP.md` y `docs/CALIBRACION-Y-CALIDAD-DTF.md`.
+
+## Archivos
+- `Halftone-DTF-0.7.0.ccx`: candidato de instalación (ZIP reproducible; no empaquetado por herramientas de Adobe).
+- `Halftone-DTF-0.7.0-proyecto.zip`: código, documentación y controles ya compilados.
 - `Halftone-DTF-Updater-Windows.zip`: acompañante de Windows.
 - `SHA256SUMS.txt`: checksum del CCX.
 
-Validación automática: 129 pruebas JavaScript, 5 de distribución Python, 10 escenarios de interfaz con Spectrum real en Chromium y 10 del acompañante Windows. El host Photoshop y Adobe UPIA se simulan en estas pruebas; no instalan ni registran tareas reales. El paquete incluye Spectrum y licencias sin node_modules ni navegador.
+## Qué está validado y qué no
+- **Automático:** 179 pruebas JavaScript, 5 de distribución Python, escenarios de interfaz con Spectrum real en Chromium y las del acompañante Windows en CI. El host de Photoshop y Adobe UPIA están **simulados**.
+- **No validado:** nada de esto se ha ejecutado en Photoshop real. Quedan por comprobar en Windows con Photoshop 25+: las operaciones de capa y máscara (`make channel`, `putLayerMask`, capa de relleno, `userMaskEnabled`), el arrastre del slider de niveles, la creación de documentos grandes de pliegos, el tiempo real por ajuste y el comportamiento del historial. Si Photoshop rechaza una operación de máscara, el panel lo avisa y vuelve al método anterior.
+- **Sin validar físicamente:** adherencia, lavado, RIP, polaridad del canal blanco y calibración de tinta. Los valores iniciales de consumo de tinta son aproximados; calíbralos con tu impresora.
+- Sin aprobación de Marketplace. No es elegible para actualización automática.
 
-El CCX es un candidato ZIP reproducible; todavía debe empaquetarse/comprobarse con herramientas de Adobe. No se afirma aprobación Marketplace ni validación física. Es un prerelease y no es elegible para instalación automática. El acompañante solo instala releases estables validados con metadata completa.
-
-La nueva interfaz debe revisarse en Photoshop, especialmente sliders nativos, foco, teclado y panel mínimo. Capturas y método: https://github.com/eguiajosue/halftone-dtf-ps/blob/main/docs/INTERFAZ-SPECTRUM-0.6.4.md
-
-Guía de instalación: https://github.com/eguiajosue/halftone-dtf-ps/blob/main/docs/INSTALACION-Y-ACTUALIZACIONES.md
+Instalación y actualizaciones: https://github.com/eguiajosue/halftone-dtf-ps/blob/main/docs/INSTALACION-Y-ACTUALIZACIONES.md

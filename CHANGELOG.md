@@ -1,6 +1,8 @@
 # Historial
 
-## Sin publicar — edición en vivo como DTPrep
+## 0.7.0 RC — 2026-10-14
+
+Resumen: edición en vivo con máscara nativa (como DTPrep), niveles en un solo slider, calibración de ganancia de punto, rellenar huecos y sólido desde, presets de fábrica, estimación de tinta y costo, canal blanco (también en lotes) y pliegos. Detalle:
 
 Documento de trabajo con dos capas, como en la referencia DTPrep: arte con **máscara de capa** (la trama vive en la máscara) y relleno con el color de prenda debajo. Mover niveles, trama o limpieza escribe solo la máscara de 1 canal; el RGB se reescribe solo si cambian las opciones de color. Las vistas Prenda / Alfa / Original / Antes sobre prenda cambian visibilidad y máscara sin escribir píxeles. Aplicar deja una única capa con alfa 0/255, igual al motor completo. Si Photoshop rechaza una operación nativa, la sesión vuelve sola al método anterior.
 

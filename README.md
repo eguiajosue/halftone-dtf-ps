@@ -1,18 +1,20 @@
-# Halftone DTF — Photoshop UXP · 0.6.4 RC
+# Halftone DTF — Photoshop UXP · 0.7.0 RC
 
 Panel en español para preparar arte de color con huecos transparentes para DTF. Flujo **Preparar → Ajustar → Exportar**, tamaño proporcional y salida fija a 300 ppp. Destino inicial: Windows / Photoshop 25.0 o superior. Procesamiento local sin dependencias de ejecución. La consulta opcional de versiones usa GitHub y no envía imágenes.
 
 **Candidato de versión.** Las pruebas automáticas usan el motor real y un host Photoshop simulado. Photoshop no está disponible en este entorno: instalación, interfaz UXP, archivos nativos y transferencia física siguen pendientes. El CCX local requiere comprobación y empaquetado oficial antes de distribución estable.
 
+**0.7.0:** edición en vivo con máscara nativa, slider único de niveles, calibración de ganancia de punto, relleno de huecos, presets de fábrica, estimación de tinta y costo, canal blanco (también en lotes) y pliegos de varios diseños. [Novedades](CHANGELOG.md) · [Auditoría frente a DTPrep](docs/AUDITORIA-DTPREP.md) · [Calibración y calidad](docs/CALIBRACION-Y-CALIDAD-DTF.md). Sin validar todavía en Photoshop real.
+
 **0.6.4:** controles reales de **Adobe Spectrum Web Components**, con wrappers oficiales para UXP. Panel minimalista: preparación numerada, colores con HEX visible, sliders amplios, opciones avanzadas plegables y acciones siempre visibles. Conserva las optimizaciones de rendimiento de 0.6.3. [Diseño, compatibilidad y pruebas](docs/INTERFAZ-SPECTRUM-0.6.4.md).
 
-**Edición en vivo como DTPrep (sin publicar):** el documento de trabajo usa arte con máscara de capa y un relleno con el color de prenda; los ajustes reescriben solo la máscara y las vistas cambian capas sin escribir píxeles. [Auditoría y mediciones](docs/AUDITORIA-DTPREP.md).
+**Edición en vivo como DTPrep (0.7.0 RC):** el documento de trabajo usa arte con máscara de capa y un relleno con el color de prenda; los ajustes reescriben solo la máscara y las vistas cambian capas sin escribir píxeles. [Auditoría y mediciones](docs/AUDITORIA-DTPREP.md).
 
-Calidad de sombras y calibración (sin publicar): rellenar huecos menores, «sólido desde» y compensación de ganancia de punto desde la carta de calibración. [Cómo calibrar](docs/CALIBRACION-Y-CALIDAD-DTF.md).
+Calidad de sombras y calibración (0.7.0 RC): rellenar huecos menores, «sólido desde» y compensación de ganancia de punto desde la carta de calibración. [Cómo calibrar](docs/CALIBRACION-Y-CALIDAD-DTF.md).
 
-Presets de fábrica y estimación de tinta y costo por pieza (sin publicar): [detalles](docs/CALIBRACION-Y-CALIDAD-DTF.md).
+Presets de fábrica y estimación de tinta y costo por pieza (0.7.0 RC): [detalles](docs/CALIBRACION-Y-CALIDAD-DTF.md).
 
-Canal blanco exportable y pliegos con varios diseños (sin publicar): [detalles](docs/CALIBRACION-Y-CALIDAD-DTF.md).
+Canal blanco exportable y pliegos con varios diseños (0.7.0 RC): [detalles](docs/CALIBRACION-Y-CALIDAD-DTF.md).
 
 ![Preparación](docs/UI-PREPARAR-0.6.4.png)
 ![Ajustes](docs/UI-AJUSTAR-0.6.4.png)
