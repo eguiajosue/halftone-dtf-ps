@@ -80,7 +80,7 @@ function controls(){
     for(const el of controlElements)el.disabled=busy;controlsBusy=busy;
   }
   syncCleanup();
-  $('next').disabled=busy||!sourceInfo;$('apply').disabled=busy||!session;
+  $('next').disabled=busy;$('apply').disabled=busy||!session;
   $('export').disabled=busy||outputID===null;$('exportWhite').disabled=busy||outputID===null;$('sheetBuild').disabled=busy||!sheetPlan;$('previewColor').disabled=busy||$('linkBackground').checked;
   $('batchRun').disabled=busy||!batchFiles.length||!batchFolder;$('whiteChokeMMBatch').disabled=busy||!$('batchWhite').checked;$('whiteFormatBatch').disabled=busy||!$('batchWhite').checked;
   $('batchCancel').disabled=!batchToken||batchToken.cancelled;
@@ -99,9 +99,12 @@ function showStage(next){
   $('stageBadge').textContent={prepare:'Preparar',edit:'Ajustar',result:'Exportar',batch:'Lotes',sheet:'Pliegos'}[next];
   $('stepLabel').textContent={prepare:'1 · Preparar impresión',edit:'2 · Editar semitonos',result:'Resultado · listo para exportar',batch:'Lotes · imágenes × tallas',sheet:'Pliegos · varios diseños en un rollo'}[next];controls();
 }
+// A failure must never look like "the button does nothing": it is shown in a
+// banner at the top as well as in the status line.
+function showError(message){$('errorBanner').textContent=message||'';}
 async function action(fn){
-  if(busy)return;busy=true;controls();
-  try{await fn();save();}catch(e){status(e.message||String(e));}
+  if(busy)return;busy=true;showError('');controls();
+  try{await fn();save();}catch(e){const message=e&&e.message||String(e);status(message);showError(message);}
   finally{busy=false;controls();}
 }
 function syncSize(axis,cm){
@@ -120,8 +123,16 @@ function updateSizeInfo(){
   $('resourceInfo').textContent=`${resources.megapixels.toFixed(1)} MP · ${resources.disk?'caché en disco':'memoria RAM'} · disco estimado ${(resources.recommendedDiskBytes/1e9).toFixed(2)} GB + scratch de Photoshop`;
   $('upscaleInfo').textContent=p.upscaled?'Se ampliará el origen. El remuestreo no recupera detalle perdido.':'El tamaño se prepara antes de tramar.';
 }
+// The source is re-read whenever it is needed, not only when the panel opens.
+function ensureSource(){if(!sourceInfo)adoptSource();}
+function sourceChanged(info){return !sourceInfo||info.documentID!==sourceInfo.documentID||info.layerID!==sourceInfo.layerID||info.width!==sourceInfo.width||info.height!==sourceInfo.height||info.dpi!==sourceInfo.dpi;}
+function refreshSource(){
+  if(busy||session||stage!=='prepare')return;
+  try{const info=host.info();if(sourceChanged(info))adoptSource();}
+  catch(e){sourceInfo=null;$('currentSizeInfo').textContent='Sin origen: '+(e.message||e);controls();}
+}
 function adoptSource(){
-  const next=host.info();sourceInfo=next;
+  const next=host.info();sourceInfo=next;showError('');
   $('sourceInfo').textContent=`${next.name} · ${next.width} × ${next.height} px · ${next.dpi} ppp de origen`;
   $('currentSizeInfo').textContent=`Tamaño actual a 300 ppp: ${fromCM(next.width/300*2.54).toFixed(2)} × ${fromCM(next.height/300*2.54).toFixed(2)} ${$('units').value}`;
   if(!Number.isFinite(Number($('widthCM').value))||Number($('widthCM').value)<=0)$('widthCM').value=fromCM(next.widthCM).toFixed(2);
@@ -184,7 +195,8 @@ async function foreground(){
     if(live)await live.flush();
     const mode=$('viewMode').value;
     if(session&&host.workspaceView)await host.workspaceView(session,'original',settings());
-    try{const key=await require('./color-picker').pickColor($('key').value);if(key){$('key').value=key;syncColor();save();}}
+    let start=$('key').value;try{hexRGB(start);}catch(_){start='#000000';}
+    try{const key=await require('./color-picker').pickColor(start);if(key){$('key').value=key;syncColor();save();}}
     finally{if(session){if(live){live.request(settings());await live.flush();}else if(host.workspaceView)await host.workspaceView(session,mode,settings());}}
   });
 }
@@ -257,13 +269,14 @@ function openBatch(){
 }
 function init(){
   load();showStage('prepare');
-  $('useCurrent').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){status(e.message);}});
+  $('useCurrent').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){status(e.message);showError(e.message);}});
+  $('detectDoc').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){sourceInfo=null;$('currentSizeInfo').textContent='Sin origen: '+e.message;status(e.message);showError(e.message);controls();}});
   for(const axis of ['width','height'])$(axis+'CM').addEventListener('input',()=>{
-    if(busy)return;try{syncSize(axis,toCM(Number($(axis+'CM').value)));save();}catch(e){$('pixelInfo').textContent='Corrige la medida antes de continuar.';status(e.message);}
+    if(busy)return;try{ensureSource();syncSize(axis,toCM(Number($(axis+'CM').value)));save();}catch(e){$('pixelInfo').textContent='Corrige la medida antes de continuar.';status(e.message);showError(e.message);}
   });
   $('applyPreset').addEventListener('click',()=>{
     if(busy)return;try{
-      if(!sourceInfo)throw Error('Primero selecciona el documento de origen.');
+      ensureSource();
       const a=sizing.garmentArea($('placement').value,$('shirtSize').value,$('garment').value,profileAreas[$('placement').value]?.[$('shirtSize').value]);
       const scale=Math.min(a[0]/sourceInfo.width,a[1]/sourceInfo.height),p={widthCM:sourceInfo.width*scale,label:`${sizing.PRESETS[$('placement').value].label} · ${$('shirtSize').value} · ${a.join(' × ')} cm`};
       $('widthCM').value=fromCM(p.widthCM).toFixed(2);syncSize('width',toCM(Number($('widthCM').value)));
@@ -313,7 +326,7 @@ function init(){
   });
   $('next').addEventListener('click',()=>action(async()=>{
     if($('protection').value==='selection')$('protection').value='off';
-    ensureEditDefaults();updateSizeInfo();const o=settings();hexRGB(o.key);if(!o.linkBackground)hexRGB(o.previewColor);
+    ensureEditDefaults();adoptSource();updateSizeInfo();const o=settings();hexRGB(o.key);if(!o.linkBackground)hexRGB(o.previewColor);
     status('Preparando tamaño y primer tramado…');
     initialToken={cancelled:false};controls();const started=Date.now();
     try{session=await host.beginSession(o.source,o,(phase,p)=>{checkInitial();status(({trim:'Midiendo arte ',resize:'Redimensionando ',screen:'Tramando ',cleanup:'Limpiando ',write:'Creando resultado '}[phase]||'Procesando ')+Math.round(p*100)+'%');});}
@@ -403,9 +416,20 @@ function init(){
   $('batchRun').addEventListener('click',()=>action(()=>executeBatch()));
   initExtras();initCompact();
   updateUI=require('./update-ui').initUpdates({get:$,preferences:localStorage,fetchImpl:typeof fetch==='function'?fetch:undefined,photoshop:typeof fetch==='function'?require('photoshop').app.version:'25.0.0',open:(url,text)=>require('uxp').shell.openExternal(url,text)});
-  try{adoptSource();}catch(_){status('Abre tu diseño y pulsa Usar documento actual.');}controls();
+  try{adoptSource();}catch(e){$('currentSizeInfo').textContent='Sin origen: '+(e.message||e);status('Abre tu diseño y pulsa Usar documento actual.');}controls();
+  watchDocuments();
 }
-entrypoints.setup({panels:{halftoneDTF:{show(){}}}});
+// Follow the active document: Photoshop events (when available) and panel focus.
+let watchTimer=null;
+function scheduleRefresh(){clearTimeout(watchTimer);watchTimer=setTimeout(refreshSource,250);}
+function watchDocuments(){
+  try{
+    const ps=require('photoshop');
+    if(ps&&ps.action&&ps.action.addNotificationListener)ps.action.addNotificationListener([{event:'open'},{event:'close'},{event:'select'},{event:'make'},{event:'set'}],scheduleRefresh);
+  }catch(_){}
+  if(typeof window!=='undefined'&&window.addEventListener)window.addEventListener('focus',scheduleRefresh);
+}
+entrypoints.setup({panels:{halftoneDTF:{show(){scheduleRefresh();}}}});
 bootstrap(document,typeof customElements!=='undefined'?customElements:null,init);
 
 function toCM(value){return $('units').value==='in'?value*2.54:value;}

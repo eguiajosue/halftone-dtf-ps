@@ -1,5 +1,15 @@
 # Historial
 
+## 0.7.1 RC — 2026-10-14
+
+Correcciones tras la primera prueba en Photoshop (medidas, cuentagotas y «Crear vista de semitonos» no respondían):
+
+- **El documento de origen se vuelve a leer cuando hace falta**, no solo al abrir el panel: al ajustar ancho/alto, al pulsar «Crear vista de semitonos», al volver a enfocar el panel y con los eventos de Photoshop (abrir, cerrar, seleccionar). Si no hay origen válido, la pantalla Preparar lo dice («Sin origen: …») y ofrece **Usar documento actual** a la vista. «Crear vista de semitonos» ya no se deshabilita en silencio.
+- **Cuentagotas:** el selector de color es un diálogo modal; ahora se pide con `interactive:true` y `modalBehavior:'wait'` (antes `batchPlay` fallaba ante el diálogo). Un HEX inválido ya no impide abrirlo.
+- **Los errores se muestran en un aviso en la parte superior** además de la línea de estado, para que un fallo no parezca «no hace nada».
+- Prueba nueva: sin documento al iniciar → mensaje visible → documento abierto después → las medidas se ajustan y la vista se crea. 182 pruebas.
+
+
 ## 0.7.0 RC — 2026-10-14
 
 Resumen: edición en vivo con máscara nativa (como DTPrep), niveles en un solo slider, calibración de ganancia de punto, rellenar huecos y sólido desde, presets de fábrica, estimación de tinta y costo, canal blanco (también en lotes) y pliegos. Detalle:

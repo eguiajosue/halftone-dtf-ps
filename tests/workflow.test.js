@@ -259,3 +259,38 @@ test('batch screen: white channel controls follow the checkbox and reach every v
  for(const b of calls.filter(c=>c[0]==='begin'))assert.equal(b[2].nativeMask,false);
  e.batchWhite.checked=false;await e.batchWhite.emit('change');calls.length=0;await e.batchRun.emit('click');assert.equal(calls.filter(c=>c[0]==='white').length,0);
 });
+
+test('no document at startup: the panel explains it, keeps buttons usable and picks the document up when asked or needed',async()=>{
+ let open=false;const doc={documentID:7,name:'Original',width:300,height:300,dpi:300,widthCM:2.54};
+ const {elements:e,calls,host}=fixture();
+ const info=host.info;host.info=()=>{if(!open)throw Error('Abre un documento antes de empezar.');return doc;};
+ // the fixture already adopted the document at startup; reset to the "no document" situation
+ await e.detectDoc.emit('click');assert.match(e.currentSizeInfo.textContent,/^Sin origen: Abre un documento/);assert.match(e.errorBanner.textContent,/Abre un documento/);
+ assert.equal(e.next.disabled,false,'Crear vista is never silently disabled');
+ await e.next.emit('click');assert.match(e.errorBanner.textContent,/Abre un documento/);assert.equal(calls.filter(c=>c[0]==='begin').length,0);
+ e.widthCM.value='20';await e.widthCM.emit('input');assert.match(e.errorBanner.textContent,/Abre un documento/);
+ open=true;                                                  // the user opens a document afterwards
+ e.widthCM.value='20';await e.widthCM.emit('input');
+ assert.equal(e.heightCM.value,'20.00','height follows width once the document is found');assert.equal(e.errorBanner.textContent,'');
+ assert.match(e.currentSizeInfo.textContent,/^Tamaño actual a 300 ppp/);
+ await e.next.emit('click');assert.equal(calls.filter(c=>c[0]==='begin').length,1);assert.equal(e.editStage.className,'');
+ await e.cancel.emit('click');host.info=info;
+});
+test('a failing action shows its error in the top banner and the next action clears it',async()=>{
+ const {elements:e,calls,host}=fixture();
+ host.beginSession=async()=>{throw Error('Photoshop rechazó la operación.');};
+ await e.next.emit('click');assert.equal(e.errorBanner.textContent,'Photoshop rechazó la operación.');assert.match(e.status.textContent,/rechazó/);
+ host.beginSession=async(source,o)=>{calls.push(['begin',source,o]);return {documentID:20,source:new Uint8Array(4),size:{width:300,height:300,widthCM:2.54,heightCM:2.54},stats:{inkPixels:1,coveragePercent:50},preview:{src:{data:new Uint8Array(4),width:1,height:1},result:{data:new Uint8Array(4),width:1,height:1},size:{width:300,height:300,widthCM:2.54,heightCM:2.54},stats:{inkPixels:1,coveragePercent:50},exact:true}};};
+ await e.next.emit('click');assert.equal(e.errorBanner.textContent,'');await e.cancel.emit('click');
+});
+test('eyedropper: invalid HEX still opens the picker, and the picker is requested as an interactive, waiting dialog',async()=>{
+ const {pickColor}=require('../plugin/color-picker'),seen={};
+ const ps={core:{executeAsModal:async(fn,o)=>{seen.modal=o;return fn();}},action:{batchPlay:async(d,o)=>{seen.desc=d[0];seen.batch=o;return [{RGBFloatColor:{red:10,grain:20,blue:30}}];}}};
+ assert.equal(await pickColor('#102030','Color',ps),'#0a141e');
+ assert.equal(seen.modal.interactive,true);assert.equal(seen.batch.modalBehavior,'wait');assert.equal(seen.desc._obj,'showColorPicker');assert.deepEqual([seen.desc.color.red,seen.desc.color.grain,seen.desc.color.blue],[16,32,48]);
+ const cancel={core:ps.core,action:{batchPlay:async()=>[{result:-128}]}};assert.equal(await pickColor('#000000','Color',cancel),null);
+ const {elements:e,host}=fixture();e.key.value='no es un color';let asked=null;
+ const color=require('../plugin/color-picker');const original=color.pickColor;color.pickColor=async hex=>{asked=hex;return '#abcdef';};
+ try{await e.foreground.emit('click');}finally{color.pickColor=original;}
+ assert.equal(asked,'#000000','invalid HEX falls back instead of blocking');assert.equal(e.key.value,'#abcdef');
+});

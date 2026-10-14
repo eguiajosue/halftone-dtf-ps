@@ -20,6 +20,7 @@
           <span id="stepResult">03 Exportar</span>
         </div>
         <p class="hidden" id="stepLabel"></p>
+        <p class="warning" id="errorBanner" role="alert"></p>
       </header>
       <section id="toolsPanel" class="hidden">
         <sp-action-button size="s" quiet id="openBatch">Procesar lote</sp-action-button>
@@ -170,6 +171,7 @@
         <section class="prepare-card">
           <div class="section-heading"><span class="section-index">01</span><h2>Tamaño de impresión</h2></div>
           <p class="hint" id="currentSizeInfo">Abre un documento para empezar.</p>
+          <sp-action-button size="s" quiet id="detectDoc">Usar documento actual</sp-action-button>
           <label>Medida<select id="sizeMode">
               <option value="custom">A medida</option>
               <option value="preset">Por talla y posición</option>

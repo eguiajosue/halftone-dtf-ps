@@ -8,11 +8,13 @@ function pickerHex(result){
   if(!rgb.every(Number.isFinite))throw Error('Photoshop devolvió un color no compatible. Usa un HEX sRGB.');
   return '#'+rgb.map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
 }
-async function pickColor(hex,title='Color a eliminar'){
-  const {core,action}=require('photoshop'),[red,grain,blue]=hexRGB(hex);
+async function pickColor(hex,title='Color a eliminar',ps=require('photoshop')){
+  const {core,action}=ps,[red,grain,blue]=hexRGB(hex);
+  // The picker is a modal dialog the user works in: the modal scope must allow
+  // interaction and batchPlay must wait for the dialog instead of failing.
   try{return await core.executeAsModal(async()=>{
-    const [result]=await action.batchPlay([{_obj:'showColorPicker',_target:[{_ref:'application'}],context:title,color:{_obj:'RGBColor',red,grain,blue}}],{});
+    const [result]=await action.batchPlay([{_obj:'showColorPicker',_target:[{_ref:'application'}],context:title,color:{_obj:'RGBColor',red,grain,blue}}],{modalBehavior:'wait'});
     return pickerHex(result);
-  },{commandName:title});}catch(e){if(e.number===-128||e.result===-128)return null;throw e;}
+  },{commandName:title,interactive:true});}catch(e){if(e.number===-128||e.result===-128)return null;throw e;}
 }
 module.exports={pickerHex,pickColor};
