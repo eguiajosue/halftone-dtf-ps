@@ -9,10 +9,11 @@ function variantPlan(width,height,placement,size,areas,garment='adult'){
  if(!Array.isArray(a)||a.length!==2||!a.every(v=>Number.isFinite(v)&&v>0&&v<=100))throw Error('Área por talla: usa medidas de más de 0 y hasta 100 cm.');
  return sizing.plan(width,height,300,{widthCM:width*Math.min(a[0]/width,a[1]/height),sizeAxis:'width'});
 }
+const whiteName=name=>name.replace(/\.png$/,'_blanco.png');
 function safeName(name){return name.replace(/\.[^.]+$/,'').replace(/[<>:"/\\|?*\x00-\x1f]/g,'_').replace(/[. ]+$/,'').slice(0,80)||'imagen';}
 function outputName(file,index,size,placement){return String(index+1).padStart(3,'0')+'_'+safeName(file.name)+'_'+size+'_'+placement+'_300ppp.png';}
 function csv(rows){
- const fields=['image','size','placement','status','output','widthCM','heightCM','widthPX','heightPX','dpi','error'];
+ const fields=['image','size','placement','status','output','widthCM','heightCM','widthPX','heightPX','dpi','coveragePercent','colorML','whiteML','cost','whiteOutput','error'];
  const quote=v=>{let s=String(v==null?'':v);if(typeof v==='string'&&/^[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"';};
  return '\ufeff'+fields.join(',')+'\r\n'+rows.map(row=>fields.map(k=>quote(row[k])).join(',')).join('\r\n');
 }
@@ -52,11 +53,12 @@ async function loadRun(folder){
   if(filename&&(filename.length!==2||filename[0]!==row.size||!(filename[1]===base||filename[1].startsWith(base.slice(0,-4)+'_r')&&/^\d+\.png$/.test(filename[1].slice(base.length-2)))))throw Error('Ruta inválida.');
   for(const key of ['widthPX','heightPX'])if(r[key]!=null&&(!Number.isInteger(r[key])||r[key]<1||r[key]>300000))throw Error('Dimensión de avance inválida.');
   if(r.widthPX&&r.heightPX&&r.widthPX*r.heightPX>sizing.MAX_OUTPUT_PIXELS)throw Error('Resultado demasiado grande.');
-  for(const key of ['status','output','widthCM','heightCM','widthPX','heightPX','error'])if(r[key]!=null)row[key]=r[key];
+  if(r.whiteOutput!=null&&r.whiteOutput!==(r.output?whiteName(r.output):null))throw Error('Ruta del canal blanco inválida.');
+  for(const key of ['status','output','widthCM','heightCM','widthPX','heightPX','whiteOutput','error'])if(r[key]!=null)row[key]=r[key];
  }catch(e){warning='Hay un registro incompleto; se verificarán las salidas antes de continuar.';}}
  return {folder,job,state,sequence,warning};
 }
-async function checkpoint(run,row){const data={};for(const k of ['id','status','output','widthCM','heightCM','widthPX','heightPX','error'])if(row[k]!=null)data[k]=row[k];await writeNew(run.state,String(++run.sequence).padStart(8,'0')+'.json',JSON.stringify(data));}
+async function checkpoint(run,row){const data={};for(const k of ['id','status','output','widthCM','heightCM','widthPX','heightPX','whiteOutput','error'])if(row[k]!=null)data[k]=row[k];await writeNew(run.state,String(++run.sequence).padStart(8,'0')+'.json',JSON.stringify(data));}
 async function preflightBatch({files,sizes,placement,areas,options,assignments,host,token={cancelled:false},onProgress=()=>{}}){
  const rows=makeRows(files,sizes,placement,areas,options,assignments),results=[];
  for(let i=0;i<files.length;i++){
@@ -88,7 +90,12 @@ async function runBatch({files,folder,sizes=['M','L'],placement='front',areas,op
    checkToken(token);
    const existing=(await folders[row.size].getEntries()).find(f=>f.name===row.output.split('/')[1]);
    if(existing&&host.validateBatchOutput&&row.widthPX&&row.heightPX){try{
-    await host.validateBatchOutput(existing,{width:row.widthPX,height:row.heightPX},()=>checkToken(token));checkToken(token);row.status='done';delete row.error;await checkpoint(run,row);done++;continue;
+    await host.validateBatchOutput(existing,{width:row.widthPX,height:row.heightPX},()=>checkToken(token));checkToken(token);
+    if(row.recipe.batchWhite){
+     const white=(await folders[row.size].getEntries()).find(f=>f.name===whiteName(existing.name));if(!white)throw Error('Falta el canal blanco.');
+     await host.validateBatchOutput(white,{width:row.widthPX,height:row.heightPX},()=>checkToken(token));checkToken(token);row.whiteOutput=row.size+'/'+white.name;
+    }
+    row.status='done';delete row.error;await checkpoint(run,row);done++;continue;
    }catch(e){if(e.cancelled)throw e;}}
    else if(row.status==='done'&&!host.validateBatchOutput){done++;continue;}row.status='pending';delete row.error;
   }
@@ -97,19 +104,28 @@ async function runBatch({files,folder,sizes=['M','L'],placement='front',areas,op
    if(e.cancelled){token.cancelled=true;throw e;}for(const row of pending){row.status='error';row.error=e.message||String(e);await checkpoint(run,row);done++;}onProgress({done,total:rows.length,message:files[i].name+': '+e.message});continue;
   }
   try{for(const row of pending){
-   checkToken(token);let session,file;
+   checkToken(token);let session,file,whiteFile;
    try{
     const frame=row.recipe.trimArt&&host.trimSourceBounds?await host.trimSourceBounds('composite',source.documentID,null,(phase,value)=>{checkToken(token);onProgress({done,total:rows.length,phase,value,message:'Midiendo '+row.image});}):null;
     const p=variantPlan(frame?.width||source.width,frame?.height||source.height,row.placement,row.size,row.areas,row.garment);Object.assign(row,{widthCM:p.widthCM,heightCM:p.heightCM,widthPX:p.width,heightPX:p.height});
-    const o={...row.recipe,frame,documentID:source.documentID,widthCM:p.requestedWidthCM,heightCM:p.requestedHeightCM,sizeAxis:'width',focusX:50,focusY:50};
+    const o={...row.recipe,frame,documentID:source.documentID,widthCM:p.requestedWidthCM,heightCM:p.requestedHeightCM,sizeAxis:'width',focusX:50,focusY:50,nativeMask:false};
     session=await host.beginSession('composite',o,(phase,value)=>{checkToken(token);onProgress({done,total:rows.length,image:files[i].name,size:row.size,phase,value,message:`${done+1}/${rows.length} · ${files[i].name} · ${row.size} · ${row.placement}`});});
     checkToken(token);if(!session.stats.inkPixels)throw Error('El resultado quedó vacío. Ajusta knockout/niveles y repite.');
+    if(session.size){const e=require('./ink').estimate(session.stats,session.size,row.recipe);
+     Object.assign(row,{coveragePercent:+e.printedPercent.toFixed(2),colorML:+e.colorML.toFixed(3),whiteML:+e.whiteML.toFixed(3),cost:e.priced?+e.totalCost.toFixed(3):''});}
     if(session.size)Object.assign(row,{widthCM:session.size.widthCM,heightCM:session.size.heightCM,widthPX:session.size.width,heightPX:session.size.height});
     let basename=outputName(files[i],i,row.size,row.placement),attempt=1;const names=new Set((await folders[row.size].getEntries()).map(f=>f.name));
-    while(names.has(basename))basename=outputName(files[i],i,row.size,row.placement).replace('.png','_r'+(++attempt)+'.png');
+    while(names.has(basename)||(row.recipe.batchWhite&&names.has(whiteName(basename))))basename=outputName(files[i],i,row.size,row.placement).replace('.png','_r'+(++attempt)+'.png');
     row.output=row.size+'/'+basename;await checkpoint(run,row);
-    file=await folders[row.size].createFile(basename,{overwrite:false});await host.exportPNG(session.documentID,file,()=>checkToken(token),session.size);row.status='done';
-   }catch(e){row.status=e.cancelled?'cancelled':'error';row.error=e.message||String(e);if(file)try{await file.delete();}catch(_){}if(e.cancelled)token.cancelled=true;}
+    file=await folders[row.size].createFile(basename,{overwrite:false});await host.exportPNG(session.documentID,file,()=>checkToken(token),session.size);
+    if(row.recipe.batchWhite){
+     whiteFile=await folders[row.size].createFile(whiteName(basename),{overwrite:false});
+     try{await host.exportWhite(session.documentID,whiteFile,{chokeMM:row.recipe.whiteChokeMM,format:row.recipe.whiteFormat},()=>checkToken(token),()=>{},session.size);}
+     catch(e){if(!e.cancelled)e.message='Canal blanco: '+(e.message||e);throw e;}
+     row.whiteOutput=row.size+'/'+whiteName(basename);
+    }
+    row.status='done';
+   }catch(e){row.status=e.cancelled?'cancelled':'error';row.error=e.message||String(e);if(file)try{await file.delete();}catch(_){}if(whiteFile)try{await whiteFile.delete();}catch(_){}delete row.whiteOutput;if(e.cancelled)token.cancelled=true;}
    finally{if(session){await host.cancelSession(session);if(session.cacheWarning)throw Error(session.cacheWarning);}}
    await checkpoint(run,row);done++;onProgress({done,total:rows.length,message:`${done}/${rows.length} · ${row.status==='done'?'Guardado':'Error'} · ${row.image} · ${row.size}`});checkToken(token);
   }}finally{await host.closeBatchSource(source);}

@@ -22,6 +22,10 @@
         <p class="hidden" id="stepLabel"></p>
       </header>
       <section id="toolsPanel" class="hidden">
+        <sp-action-button size="s" quiet id="openBatch">Procesar lote</sp-action-button>
+        <sp-action-button size="s" quiet id="openSheet">Armar pliego (gang sheet)</sp-action-button>
+        <sp-action-button size="s" quiet id="toggleCalibration">Calibración de punto</sp-action-button>
+        <sp-action-button size="s" quiet id="toggleInk">Costos de tinta</sp-action-button>
         <sp-action-button size="s" quiet id="toggleRecipes">Recetas y perfiles</sp-action-button>
         <sp-action-button size="s" quiet id="toggleHelp">Ayuda y diagnóstico</sp-action-button>
         <sp-action-button size="s" quiet id="toggleUpdates">Versión y actualizaciones</sp-action-button>
@@ -64,6 +68,34 @@
           <sp-action-button size="s" quiet id="openUpdate">Abrir releases</sp-action-button>
         </div>
         <sp-action-button size="s" quiet id="updaterGuide">Instalación y actualización automática</sp-action-button>
+      </section>
+      <section class="hidden" id="inkPanel">
+        <h2>Tinta y costos por pieza</h2>
+        <p class="hint">Consumo a cobertura total y precios. Los valores iniciales son aproximados: calibra el consumo con el contador de tinta de tu impresora (ml usados ÷ m² impresos). Deja los precios en 0 para ver solo los mililitros.</p>
+        <div class="row">
+          <label>Color · ml/m²<input id="inkColorMLm2" type="number" min="0" max="1000" step="0.1" value="8">
+          </label>
+          <label>Blanca · ml/m²<input id="inkWhiteMLm2" type="number" min="0" max="1000" step="0.1" value="12">
+          </label>
+        </div>
+        <div class="row">
+          <label>Color · precio/litro<input id="inkColorPriceL" type="number" min="0" max="100000" step="0.01" value="0">
+          </label>
+          <label>Blanca · precio/litro<input id="inkWhitePriceL" type="number" min="0" max="100000" step="0.01" value="0">
+          </label>
+        </div>
+        <label>Film y polvo · precio/m²<input id="filmPriceM2" type="number" min="0" max="100000" step="0.01" value="0">
+        </label>
+        <p class="hint">Supone tinta blanca bajo cada punto de color. «Menos tinta que sin trama» compara con imprimir sólido el arte con cobertura de al menos 50 %. Moneda: la que uses al escribir los precios.</p>
+      </section>
+      <section class="hidden" id="calibrationPanel">
+        <h2>Ganancia de punto</h2>
+        <p class="hint">La tinta se expande en el film: un 30 % puede imprimirse como 41 %. Imprime la carta de calibración con la lineatura que usarás, mide el porcentaje real de cada parche y escribe pares nominal:medido.</p>
+        <label>Nominal:medido · %<input id="gainPoints" type="text" maxlength="80" placeholder="10:14, 30:41, 50:63, 70:80, 90:94" autocomplete="off">
+        </label>
+        <p class="hint" id="gainInfo">Sin compensación: se imprime la cobertura pedida.</p>
+        <sp-action-button size="s" quiet id="clearGain">Quitar compensación</sp-action-button>
+        <p class="hint">La compensación se guarda con las recetas. Mídela por equipo, film y lineatura; cambia si cambia cualquiera.</p>
       </section>
       <section class="hidden" id="recipesPanel">
         <h2>Recetas del taller</h2>
@@ -128,8 +160,16 @@
       </section>
       <div id="prepareStage">
         <div class="stage-content" id="prepareContent">
+        <section class="prepare-card" id="presetCard">
+          <label>Preset<select id="presetSelect">
+              <option value="">Personalizado</option>
+            </select>
+          </label>
+          <p class="hint" id="presetNote"></p>
+        </section>
         <section class="prepare-card">
           <div class="section-heading"><span class="section-index">01</span><h2>Tamaño de impresión</h2></div>
+          <p class="hint" id="currentSizeInfo">Abre un documento para empezar.</p>
           <label>Medida<select id="sizeMode">
               <option value="custom">A medida</option>
               <option value="preset">Por talla y posición</option>
@@ -196,6 +236,7 @@
             <label>Ángulo (°)<input id="angle" max="180" min="-180" type="number" value="33">
             </label>
           </div>
+          <p class="hint" id="lpcInfo">11.8 líneas por cm (LPC)</p>
           <sp-checkbox size="s" class="check" checked="" id="halftone">Activar trama de semitonos</sp-checkbox>
         </section>
         <section class="prepare-card">
@@ -219,7 +260,6 @@
         </div>
         <div class="stage-actions">
         <sp-button size="m" variant="accent" treatment="fill" class="primary" id="next">Crear vista de semitonos</sp-button>
-        <sp-action-button size="s" quiet id="openBatch">Procesar lote</sp-action-button>
       </div>
         </div>
       <div id="editStage" class="hidden">
@@ -230,10 +270,9 @@
             <sp-action-button size="s" quiet id="foregroundEdit" class="swatch" aria-label="Color a eliminar y cuentagotas" title="Elegir color a eliminar"><span slot="icon" class="swatch-chip" id="keySwatch"></span><span id="keyHexCaption">#000000</span></sp-action-button>
           </div>
           <div class="row color-row">
-            <span class="color-caption">Fondo de prenda</span>
+            <sp-checkbox size="s" class="check" checked="" id="linkBackground"><span>Prenda = eliminado</span></sp-checkbox>
             <sp-action-button size="s" quiet id="pickBackground" class="swatch" aria-label="Color de la prenda" title="Elegir fondo de la prenda"><span slot="icon" class="swatch-chip" id="backgroundSwatch"></span><span id="backgroundHexCaption">#000000</span></sp-action-button>
           </div>
-          <sp-checkbox size="s" class="check" checked="" id="linkBackground"><span>Usar el color eliminado como fondo</span></sp-checkbox>
         </section>
         <div class="row">
           <sp-action-button size="s" quiet id="resetLevels">Restablecer</sp-action-button>
@@ -257,42 +296,33 @@
           <sp-checkbox size="s" class="check" id="halftoneEdit" checked="">Activar trama</sp-checkbox>
         </section>
         <section class="control-card" id="levelsControls">
-          <div class="section-heading"><h2>Cobertura de la trama</h2></div>
-          <div class="levels-row">
-            <div class="level">
-              <label>Negro<input id="inputBlack" max="254" min="0" step="1" type="number" value="7">
-              </label>
-              <sp-slider id="inputBlackSlider" max="254" min="0" show-value="false" value="7"></sp-slider>
-            </div>
-            <div class="level">
-              <label>Medios<input id="inputMidtone" max="9.99" min="0.1" step="0.01" type="number" value="2">
-              </label>
-              <sp-slider id="inputMidtoneSlider" max="9.99" min="0.1" show-value="false" step="0.01" value="2"></sp-slider>
-            </div>
-            <div class="level">
-              <label>Blanco<input id="inputWhite" max="255" min="1" step="1" type="number" value="100">
-              </label>
-              <sp-slider id="inputWhiteSlider" max="255" min="1" show-value="false" value="100"></sp-slider>
-            </div>
+          <div class="section-heading"><h2>Niveles · negro / medios / blanco</h2></div>
+          <div class="levels-slider" id="inputLevels" role="group" aria-label="Niveles de entrada">
+            <div class="levels-track input-track"></div>
+            <span class="levels-handle black" id="inputBlackHandle" tabindex="0" role="slider" aria-label="Entrada negro" aria-valuemin="0" aria-valuemax="253"></span>
+            <span class="levels-handle mid" id="inputMidtoneHandle" tabindex="0" role="slider" aria-label="Medios tonos" aria-valuemin="0.1" aria-valuemax="9.99"></span>
+            <span class="levels-handle white" id="inputWhiteHandle" tabindex="0" role="slider" aria-label="Entrada blanco" aria-valuemin="2" aria-valuemax="255"></span>
           </div>
-          <sp-action-button size="s" quiet id="toggleOutput" class="quiet" aria-expanded="false">Salida y sombras</sp-action-button>
-          <div id="outputControls" class="hidden">
-          <h2>Niveles de salida</h2>
-          <div class="levels-row">
-            <div class="level">
-              <label>Negro<input id="outputBlack" max="255" min="0" step="1" type="number" value="0">
-              </label>
-              <sp-slider id="outputBlackSlider" max="255" min="0" show-value="false" value="0"></sp-slider>
-            </div>
-            <div class="level">
-              <label>Blanco<input id="outputWhite" max="255" min="0" step="1" type="number" value="255">
-              </label>
-              <sp-slider id="outputWhiteSlider" max="255" min="0" show-value="false" value="255"></sp-slider>
-            </div>
+          <div class="levels-values">
+            <input id="inputBlack" aria-label="Entrada negro" max="254" min="0" step="1" type="number" value="7">
+            <input id="inputMidtone" aria-label="Medios tonos" max="9.99" min="0.1" step="0.01" type="number" value="2">
+            <input id="inputWhite" aria-label="Entrada blanco" max="255" min="1" step="1" type="number" value="100">
+          </div>
+          <sp-action-button size="s" quiet id="toggleOutput" class="quiet hidden" aria-expanded="true">Salida y sombras</sp-action-button>
+          <div id="outputControls">
+          <h2 class="levels-caption">Niveles de salida · forzar trama</h2>
+          <div class="levels-slider" id="outputLevels" role="group" aria-label="Niveles de salida">
+            <div class="levels-track output-track"></div>
+            <span class="levels-handle black" id="outputBlackHandle" tabindex="0" role="slider" aria-label="Salida negro" aria-valuemin="0" aria-valuemax="253"></span>
+            <span class="levels-handle white" id="outputWhiteHandle" tabindex="0" role="slider" aria-label="Salida blanco" aria-valuemin="2" aria-valuemax="255"></span>
+          </div>
+          <div class="levels-values two">
+            <input id="outputBlack" aria-label="Salida negro" max="255" min="0" step="1" type="number" value="0">
+            <input id="outputWhite" aria-label="Salida blanco" max="255" min="0" step="1" type="number" value="255">
           </div>
           <p class="hidden">Blanco = mayor cobertura. Reducir el blanco de salida fuerza trama en zonas sólidas. Los colores originales se conservan.</p>
         <div class="level">
-          <label>Compensar sombras · %<input id="shadowBoost" max="100" min="0" type="number" value="0">
+          <label>Sombras · %<input id="shadowBoost" max="100" min="0" type="number" value="0">
           </label>
           <sp-slider id="shadowBoostSlider" max="100" min="0" show-value="false" value="0"></sp-slider>
         </div>
@@ -302,7 +332,7 @@
         <div class="view-buttons" role="group" aria-label="Vista en Photoshop">
           <sp-action-button size="s" quiet id="viewOriginal">Original</sp-action-button>
           <sp-action-button size="s" quiet id="viewGarment" class="active">Prenda</sp-action-button>
-          <sp-action-button size="s" quiet id="viewTransparent" aria-label="Trama sobre fondo transparente">Trama</sp-action-button>
+          <sp-action-button size="s" quiet id="viewTransparent" aria-label="Trama sobre fondo transparente">Alfa</sp-action-button>
           <sp-action-button size="s" quiet id="viewMask">Máscara</sp-action-button>
         </div>
         <sp-checkbox size="s" class="check compare-toggle" id="compareEnabled">Comparar antes y después</sp-checkbox>
@@ -377,6 +407,11 @@
           </label>
           <label>Diámetro equivalente mínimo · mm<input id="minDiameterMM" max="2" min="0" step="0.01" type="number" value="0.20">
           </label>
+          <label>Rellenar huecos menores · mm<input id="fillHolesMM" max="1" min="0" step="0.01" type="number" value="0">
+          </label>
+          <label>Sólido desde cobertura · %<input id="solidAbove" max="100" min="50" step="1" type="number" value="100">
+          </label>
+          <p class="hint">Rellenar huecos cierra los poros de las sombras que la tinta y el polvo taparían; no imprime color eliminado ni zonas transparentes. «Sólido desde» imprime sin trama las sombras que superan ese porcentaje. 0 mm y 100 % lo desactivan.</p>
         </section>
         <section class="hidden" id="inspectorPanel">
           <h2>Revisa el resultado</h2>
@@ -448,6 +483,7 @@
         </div>
         <div class="stage-actions">
         <p class="tag" id="liveState">Vista y lienzo sincronizados</p>
+        <p class="hint" id="inkEstimate"></p>
         <div class="row">
           <sp-button size="m" variant="secondary" treatment="outline" id="cancel">Cancelar</sp-button>
           <sp-button size="m" variant="accent" treatment="fill" class="primary" id="apply">Aplicar</sp-button>
@@ -463,8 +499,21 @@
           <h2>Resultado preparado</h2>
           <p id="resultInfo"></p>
           <sp-button size="m" variant="accent" treatment="fill" class="primary" id="export">Exportar PNG · 300 ppp</sp-button>
+          <sp-action-button size="s" quiet id="exportWhite">Exportar canal blanco (PNG)</sp-action-button>
+          <div class="row">
+            <label>Contracción · mm<input id="whiteChokeMM" type="number" min="0" max="5" step="0.05" value="0.15">
+            </label>
+            <label>Archivo<select id="whiteFormat">
+                <option value="blackOnWhite" selected>Negro = tinta</option>
+                <option value="alpha">Blanco sobre transparente</option>
+                <option value="whiteOnBlack">Blanco = tinta</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint" id="whiteInfo">El blanco sigue la forma del color, contraído para que no asome por el borde; nunca borra el blanco bajo puntos pequeños. Confirma la polaridad que pide tu RIP.</p>
           <sp-action-button size="s" quiet id="newJob">Nueva preparación</sp-action-button>
           <sp-action-button size="s" quiet id="openBatchResult">Procesar lote con estos ajustes</sp-action-button>
+          <sp-action-button size="s" quiet id="openSheetResult">Armar pliego con varios diseños</sp-action-button>
         </section>
         <sp-action-button size="s" quiet id="reopenLastProject">Reabrir último proyecto guardado</sp-action-button>
       </div>
@@ -669,6 +718,18 @@
             <sp-checkbox size="s" class="check" id="defringeBatch">Tratar bordes</sp-checkbox>
           </div>
         </section>
+        <sp-checkbox size="s" class="check" id="batchWhite">Exportar también el canal blanco de cada variante (_blanco.png)</sp-checkbox>
+        <div class="row">
+          <label>Contracción · mm<input id="whiteChokeMMBatch" type="number" min="0" max="5" step="0.05" value="0.15">
+          </label>
+          <label>Archivo<select id="whiteFormatBatch">
+              <option value="blackOnWhite" selected>Negro = tinta</option>
+              <option value="alpha">Blanco sobre transparente</option>
+              <option value="whiteOnBlack">Blanco = tinta</option>
+            </select>
+          </label>
+        </div>
+        <p class="hint">El blanco se guarda junto a cada PNG, con su misma talla y nombre. Más lento y con más espacio en disco; confirma la polaridad que pide tu RIP.</p>
         <sp-action-button size="s" quiet id="batchPreflight">Verificar archivos y variantes</sp-action-button>
         <p class="hint" id="batchPreflightInfo"></p>
         <sp-action-button size="s" quiet id="batchResume">Reanudar un lote guardado</sp-action-button>
@@ -677,6 +738,47 @@
         <sp-action-button size="s" quiet id="batchBack">Volver</sp-action-button>
         <p id="batchProgress" role="status">Elige archivos, destino y tallas.</p>
         <p class="hint">Puedes detenerlo entre bloques. Los PNG completados se conservan. reporte.csv y ajustes-y-resultados.json registran resultados, errores y cancelaciones.</p>
+      </div>
+      <div class="hidden" id="sheetStage">
+        <div class="stage-content" id="sheetContent">
+        <section>
+          <h2>Pliego de impresión</h2>
+          <sp-action-button size="s" quiet id="sheetFiles">Elegir diseños PNG · 300 ppp</sp-action-button>
+          <p class="hint" id="sheetFilesInfo">Usa los PNG que ya exportaste. Cada diseño se coloca tal cual, sin remuestrear.</p>
+          <div id="sheetItems"></div>
+          <sp-action-button size="s" quiet id="sheetClear">Quitar todos</sp-action-button>
+          <div class="row">
+            <label>Ancho del rollo<select id="sheetRoll">
+                <option value="30">30 cm</option>
+                <option value="33">33 cm</option>
+                <option value="42">42 cm</option>
+                <option value="58" selected>58 cm</option>
+                <option value="60">60 cm</option>
+                <option value="custom">Otro…</option>
+              </select>
+            </label>
+            <label class="hidden" id="sheetCustomRow">Ancho · cm<input id="sheetWidthCM" type="number" min="10" max="200" step="0.1" value="58">
+            </label>
+          </div>
+          <label>Largo máximo · cm (0 = sin límite)<input id="sheetMaxLengthCM" type="number" min="0" max="2000" step="1" value="0">
+          </label>
+          <div class="row">
+            <label>Separación · mm<input id="sheetSpacingMM" type="number" min="0" max="50" step="0.5" value="5">
+            </label>
+            <label>Margen · mm<input id="sheetMarginMM" type="number" min="0" max="50" step="0.5" value="5">
+            </label>
+          </div>
+          <sp-checkbox size="s" class="check" checked="" id="sheetRotate">Permitir girar 90° para ahorrar film</sp-checkbox>
+          <sp-checkbox size="s" class="check" id="sheetMarks">Marcas de corte en las esquinas (separación ≥ 6 mm)</sp-checkbox>
+          <sp-checkbox size="s" class="check" id="sheetWhite">Guardar también el canal blanco del pliego</sp-checkbox>
+          <sp-checkbox size="s" class="check" id="sheetKeepOpen">Dejar los pliegos abiertos en Photoshop</sp-checkbox>
+          <p class="hint" id="sheetInfo">Elige uno o más diseños.</p>
+        </section>
+        </div>
+        <div class="stage-actions">
+        <sp-button size="m" variant="accent" treatment="fill" class="primary" id="sheetBuild">Crear pliego y guardar PNG</sp-button>
+        <sp-action-button size="s" quiet id="sheetBack">Volver</sp-action-button>
+        </div>
       </div>
       <sp-action-button size="s" quiet class="hidden" id="cancelPreparation">Detener preparación</sp-action-button>
       <p id="status" role="status">Abre tu diseño en Photoshop para empezar.</p>

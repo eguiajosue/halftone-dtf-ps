@@ -1,5 +1,23 @@
 # Historial
 
+## 0.7.0 RC — 2026-10-14
+
+Resumen: edición en vivo con máscara nativa (como DTPrep), niveles en un solo slider, calibración de ganancia de punto, rellenar huecos y sólido desde, presets de fábrica, estimación de tinta y costo, canal blanco (también en lotes) y pliegos. Detalle:
+
+Documento de trabajo con dos capas, como en la referencia DTPrep: arte con **máscara de capa** (la trama vive en la máscara) y relleno con el color de prenda debajo. Mover niveles, trama o limpieza escribe solo la máscara de 1 canal; el RGB se reescribe solo si cambian las opciones de color. Las vistas Prenda / Alfa / Original / Antes sobre prenda cambian visibilidad y máscara sin escribir píxeles. Aplicar deja una única capa con alfa 0/255, igual al motor completo. Si Photoshop rechaza una operación nativa, la sesión vuelve sola al método anterior.
+
+Motor en caché (`plugin/live-render.js`): cobertura y umbrales en 16 bits por píxel, niveles en tabla y limpieza de partículas acotada con las mismas islas eliminadas. A 13 MP, un ajuste baja de ~2,1 s a ~0,23 s con limpieza Normal (~0,03 s sin limpieza), medido en CPU. Espera de 40 ms antes de recalcular.
+
+**Canal blanco en lotes:** casilla «Exportar también el canal blanco de cada variante» con contracción y formato; cada `_blanco.png` queda junto a su PNG (misma talla y nombre), se registra en `reporte.csv` y en el avance, y la reanudación lo valida o rehace la variante. Si el blanco falla, esa variante se marca como error y se borran el PNG y el blanco para no dejar pares incompletos. **Corrección:** los lotes y la comprobación nativa ya no crean la estructura de máscara y relleno de la edición en vivo (`nativeMask:false`), que habría dejado una capa de prenda opaca bajo el arte al exportar.
+
+**Canal blanco** exportable aparte (PNG): sigue la forma del color con contracción en mm, limitada por forma para que los puntos pequeños conserven ~60–70 % de su diámetro, tres polaridades de archivo y hasta 128 MP. **Pliegos** (gang sheet): varios PNG a 300 ppp con copias en un rollo de 30/33/42/58/60 cm u otro, acomodo skyline con giro de 90°, separación y margen, marcas de corte opcionales, reparto en varios pliegos por largo máximo o 128 MP, guardado de PNG y canal blanco en una carpeta y m²/costo de film. Cada diseño se copia por bloques de 512 px sin remuestrear.
+
+**Presets de fábrica** en Preparar (camiseta negra foto / detalle fino, camiseta blanca logo, vintage, líneas, solo quitar fondo): aplican trama, niveles, knockout, limpieza y poros sin tocar tamaño, calibración ni costos; las recetas guardadas aparecen en el mismo selector. **Estimación de tinta por pieza** (color, blanca, cobertura, ahorro frente a imprimir sin trama y costo opcional con precios de tinta y film) en Ajustar y en Exportar; panel «Costos de tinta» en ☰ con consumo editable. El reporte CSV de lotes añade cobertura, ml de color, ml de blanca y costo por variante.
+
+Calidad de impresión DTF: **rellenar huecos menores** (cierra los poros de las sombras que la tinta y el polvo taparían; solo píxeles tramados, nunca color eliminado ni transparencia), **sólido desde cobertura %** (las sombras por encima del tope se imprimen sin trama) y **compensación de ganancia de punto** a partir de la carta de calibración (pares nominal:medido, curva inversa aplicada a la cobertura; se guarda en las recetas). Los valores por defecto (0 mm, 100 %, sin curva) no cambian la salida ni un byte. Funcionan igual en vivo, en lotes y en bloques de imágenes grandes (el halo de bloque incluye el tamaño del hueco; prueba de costuras idéntica). Ajuste en vivo a 13 MP con las tres opciones: ~0,3 s.
+
+Interfaz: tamaño actual a 300 ppp y equivalencia en LPC en Preparar; **un solo slider de niveles con tiradores negro / medios / blanco** y otro de salida negro / blanco, como en Photoshop y DTPrep (medios en 0,5^gamma; arrastre, clic en la pista y teclado); sombras visibles; vista Alfa; lotes en el menú ☰. 179 pruebas JavaScript. Detalles y pendientes nativos en `docs/AUDITORIA-DTPREP.md`.
+
 ## 0.6.4 RC — 2026-10-09
 
 Integra Adobe Spectrum Web Components mediante wrappers oficiales de UXP: botones, acciones, casillas y campos HEX. Conserva el slider nativo y los campos numéricos/selectores compatibles con Photoshop 25. Preparación numerada, navegación por etapas, color y HEX visibles, vistas y limpieza segmentadas y acciones fijadas fuera del área desplazable. Opciones avanzadas accesibles a demanda; funciones de tallas, protección y lotes conservadas.

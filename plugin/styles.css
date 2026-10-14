@@ -57,9 +57,41 @@ sp-slider{width:100%;margin:3px 0 0;}#levelsControls h2{margin:0;}
 .chips{display:flex;flex-wrap:wrap;}.chips sp-checkbox{min-width:48px;flex:0;margin:0 8px 7px 0;}#assignmentPanel{padding:12px;background:#2c2c2c;border-radius:6px;margin:7px 0;}
 #resetLevels{width:35%;flex:none;}#sessionInfo{margin:5px 0;}
 
-#prepareStage,#editStage,#resultStage,#batchStage{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;}
+#prepareStage,#editStage,#resultStage,#batchStage,#sheetStage{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;}
 .stage-content{flex:1;min-height:0;overflow:auto;padding-right:2px;}
 .stage-actions{flex:none;border-top:1px solid #3d3d3d;padding-top:6px;}
 #toolsPanel,#helpPanel,#recipesPanel,#updatesPanel{max-height:45vh;overflow:auto;flex:none;}
 #status{flex:none;max-height:42px;overflow:auto;margin:6px 0 0;}footer{flex:none;margin-top:5px;}
 sp-action-button{--mod-actionbutton-content-color-default-selected:#fff;--mod-actionbutton-content-color-hover-selected:#fff;--mod-actionbutton-content-color-down-selected:#fff;--mod-actionbutton-content-color-focus-selected:#fff;--mod-actionbutton-background-color-default-selected:#414b45;--mod-actionbutton-background-color-hover-selected:#4a564e;}
+
+/* DTPrep-style compact levels: value and slider share one row. */
+#levelsControls .level{display:flex;align-items:center;margin-bottom:6px;}
+#levelsControls .level label{width:44%;flex:none;margin-right:10px;}
+#levelsControls .level input{width:54px;height:26px;}
+#levelsControls sp-slider{flex:1;margin:0;}
+#currentSizeInfo{margin:-4px 0 10px;}#lpcInfo{margin:-4px 0 8px;}
+#outputControls h2{display:none;}#levelsControls{padding-top:8px;}#levelsControls .section-heading{margin-bottom:8px;}
+#editContent .control-caption{margin:2px 0 4px;}#editContent .color-core{padding-bottom:2px;}#editContent .color-row{margin-bottom:4px;}
+#editContent .compare-toggle{margin-bottom:4px;}#cleanupControls{padding-top:8px;}#cleanupControls h2{margin-bottom:6px;}
+
+/* Unified Levels slider (Photoshop / DTPrep style). */
+.levels-slider{position:relative;height:22px;margin:4px 9px 2px;cursor:pointer;}
+.levels-track{position:absolute;left:0;right:0;top:9px;height:4px;border-radius:2px;background-color:#777;background-image:linear-gradient(to right,#000,#fff);border:1px solid #555;}
+.levels-handle{position:absolute;top:2px;width:16px;height:16px;margin-left:-9px;border-radius:9px;border:1px solid #9a9a9a;box-sizing:border-box;}
+.levels-handle.black{background:#111;}.levels-handle.mid{background:#7f7f7f;}.levels-handle.white{background:#f2f2f2;border-color:#d0d0d0;}
+.levels-handle:focus{outline:2px solid #88b7ed;outline-offset:1px;}
+.levels-values{display:flex;justify-content:space-between;margin:2px 0 8px;}
+.levels-values input{width:58px;height:26px;margin:0;padding:3px 6px;text-align:center;}
+.levels-caption{font-size:11px!important;font-weight:400!important;color:#bcbcbc!important;display:block!important;margin:4px 0 2px!important;}
+#levelsControls .levels-slider{display:block;}
+
+/* Preset selector and compact Prepare screen. */
+#presetCard{padding:0 0 2px;}#presetCard label{margin-bottom:4px;}#presetNote:empty{display:none;}#presetNote{margin:0 0 4px;}
+#prepareContent .prepare-card{padding:4px 0;}#prepareContent .section-heading{margin-bottom:6px;}#prepareContent label{margin-bottom:6px;}
+#prepareContent input,#prepareContent select{height:30px;margin-top:4px;}#prepareTrama{padding:8px 10px;}#prepareTrama .row>label{margin-bottom:2px;}
+#prepareContent .check{margin-bottom:4px;}#prepareContent .hint{margin:2px 0 6px;}#prepareContent{padding-bottom:6px;}
+
+/* Gang sheet */
+.sheet-row{display:flex;align-items:center;margin:0 0 6px;}.sheet-row span{flex:1;min-width:0;font-size:11px;color:#d6d6d6;word-break:break-all;}
+.sheet-row input{width:56px;height:26px;margin:0 0 0 8px;padding:3px 6px;text-align:center;flex:none;}
+#sheetItems{max-height:150px;overflow:auto;margin:4px 0 6px;}#sheetInfo{color:#b1d3c4;font-size:11px;}

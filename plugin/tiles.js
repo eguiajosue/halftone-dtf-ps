@@ -61,14 +61,17 @@ async function createDiskStore(width,height,components=4){
 function haloFor(options){
   const n=validate(options),diameter=n.minDiameterMM/25.4*n.dpi;
   const area=Math.max(1,Math.ceil(Math.PI*(diameter/2)**2));
+  const holes=n.halftone?require('./holes').minAreaFor(n.fillHolesMM,n.dpi):1;
   // Every removable 8-connected component has < area pixels and hence spans
   // at most area-1 steps. This halo gives exact global small-particle cleanup,
   // even across tile corners. Also include the edge detector's one-pixel radius.
-  return area-1+Math.max(n.protection==='edges'?n.edgeRadius:0,n.defringe?n.defringeRadius:0);
+  // Pores smaller than `holes` pixels are filled after islands are removed, so
+  // their extent plus the context that decides each member is needed.
+  return area-1+(holes>1?holes-1:0)+Math.max(n.protection==='edges'?n.edgeRadius:0,n.defringe?n.defringeRadius:0);
 }
 async function processTiles(source,target,options,hook,protectStore){
   const n=validate(options),halo=haloFor(n),count=Math.ceil(source.width/TILE_SIZE)*Math.ceil(source.height/TILE_SIZE);
-  let done=0,inkPixels=0,removedPixels=0,protectedPixels=0,screenPixels=0,cellStats;
+  let done=0,inkPixels=0,removedPixels=0,protectedPixels=0,screenPixels=0,solidPixels=0,cellStats;
   for(const core of tiles(source.width,source.height)){
     if(hook)await hook('tile',done/count);
     const bounds=expand(core,source.width,source.height,halo),src=await source.read(bounds);
@@ -77,10 +80,10 @@ async function processTiles(source,target,options,hook,protectStore){
     const result=await processRGBA(src.data,src.width,src.height,Object.assign({},n,{originX:bounds.left,originY:bounds.top,protectMask:protect,statsRegion:region}),hook);
     if(hook)await hook('tile',done/count);
     await target.put(core,cut(result.data,src.width,region));
-    screenPixels+=result.stats.regionScreenPixels;inkPixels+=result.stats.regionInkPixels;removedPixels+=result.stats.regionRemovedPixels;protectedPixels+=result.stats.regionProtectedPixels;cellStats=result.stats;done++;
+    screenPixels+=result.stats.regionScreenPixels;inkPixels+=result.stats.regionInkPixels;removedPixels+=result.stats.regionRemovedPixels;protectedPixels+=result.stats.regionProtectedPixels;solidPixels+=result.stats.solidPixels||0;cellStats=result.stats;done++;
   }
   if(hook)await hook('tile',1);
-  return {cellPX:cellStats.cellPX,minArea:cellStats.minArea,minDiameterMM:cellStats.minDiameterMM,inkPixels,removedPixels,protectedPixels,screenPixels,removedComponents:null,coveragePercent:inkPixels/(source.width*source.height)*100};
+  return {cellPX:cellStats.cellPX,minArea:cellStats.minArea,minDiameterMM:cellStats.minDiameterMM,inkPixels,removedPixels,protectedPixels,screenPixels,removedComponents:null,coveragePercent:inkPixels/(source.width*source.height)*100,...(n.measureSolid?{solidPixels}:null)};
 }
 module.exports={TILE_SIZE,RAM_PIXELS,tiles,expand,cut,MemoryStore,DiskStore,createDiskStore,haloFor,processTiles};
 

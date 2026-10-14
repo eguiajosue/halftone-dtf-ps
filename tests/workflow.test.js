@@ -45,8 +45,12 @@ test('Next prepares a processed copy; stage 2 edits knockout and five levels bef
   await e.next.emit('click');assert.equal(e.prepareStage.className,'hidden');assert.equal(e.editStage.className,'');
   assert.equal(calls[0][0],'begin');assert.equal(calls[0][2].widthCM,2.54);
   e.keyEdit.value='#123456';await e.keyEdit.emit('input');assert.equal(e.key.value,'#123456');
-  e.inputMidtoneSlider.value=2;await e.inputMidtoneSlider.emit('input');assert.equal(e.inputMidtone.value,2);
-  e.outputWhiteSlider.value=140;await e.outputWhiteSlider.emit('input');
+  // Unified Levels sliders: keyboard on the midtone handle, drag on the output white handle.
+  await e.inputMidtoneHandle.emit('keydown',{key:'ArrowLeft'});assert.equal(e.inputMidtone.value,2.05);
+  await e.inputMidtoneHandle.emit('keydown',{key:'ArrowRight'});assert.equal(e.inputMidtone.value,2);
+  e.outputLevels.getBoundingClientRect=()=>({left:10,width:255});
+  await e.outputLevels.emit('mousedown',{button:0,clientX:10+140,target:e.outputWhiteHandle});await e.outputLevels.emit('mouseup');
+  assert.equal(e.outputWhiteHandle.style.left,(140/255*100)+'%');
   await e.apply.emit('click');const update=calls.find(c=>c[0]==='update')[1];
   assert.equal(update.key,'#123456');assert.equal(update.inputMidtone,2);assert.equal(update.outputWhite,140);
   assert.equal(e.resultStage.className,'');assert.equal(e.editStage.className,'hidden');assert.ok(calls.some(c=>c[0]==='release'));
@@ -139,8 +143,8 @@ test('four view buttons use the Photoshop workspace without retriggering screeni
 test('cleanup segments preserve calibrated thresholds, version and stage remain current',async()=>{
  const {elements:e,calls}=fixture();assert.equal(e.footerVersion.textContent,require('../plugin/manifest.json').version+' RC');
  await e.next.emit('click');assert.equal(e.stageBadge.textContent,'Ajustar');
- assert.equal(e.outputControls.className,'hidden');await e.toggleOutput.emit('click');assert.equal(e.outputControls.className,'');
- e.outputWhite.value=180;await e.outputWhite.emit('input');await e.toggleOutput.emit('click');assert.equal(e.outputWhite.value,180);
+ assert.equal(e.outputControls.className,'');
+ e.outputWhite.value=180;await e.outputWhite.emit('input');assert.equal(e.outputWhite.value,180);
  await e.cleanupHigh.emit('click');assert.equal(e.cleanup.value,'high');assert.equal(e.minDiameterMM.value,require('../plugin/engine').LEVELS.high.minDiameterMM);
  assert.equal(e.cleanupHigh.className,'active');assert.equal(e.cleanupStandard.className,'');
  await e.apply.emit('click');assert.equal(calls.find(c=>c[0]==='update')[1].detailPreview,false);assert.equal(e.stageBadge.textContent,'Exportar');
@@ -165,4 +169,93 @@ test('rounded measurement display preserves full print size across cm/in changes
  const {elements:e,calls}=fixture();e.widthCM.value=20;await e.widthCM.emit('input');e.units.value='in';await e.units.emit('change');
  assert.equal(e.widthCM.value,'7.87');await e.useCurrent.emit('click');await e.next.emit('click');
  assert.equal(calls.find(c=>c[0]==='begin')[2].widthCM,20);await e.cancel.emit('click');
+});
+
+test('dot-gain calibration and shadow options reach the engine; invalid pairs are explained and not applied',async()=>{
+ const {elements:e,calls}=fixture();await e.next.emit('click');calls.length=0;
+ e.gainPoints.value='10:14, 30:41, 50:63';await e.gainPoints.emit('input');
+ assert.match(e.gainInfo.textContent,/se pedirá/);
+ e.fillHolesMM.value='0.3';await e.fillHolesMM.emit('input');e.solidAbove.value='92';await e.solidAbove.emit('input');
+ await e.apply.emit('click');
+ const update=calls.filter(c=>c[0]==='update').pop()[1];
+ assert.equal(update.gainPoints,'10:14, 30:41, 50:63');assert.equal(update.fillHolesMM,0.3);assert.equal(update.solidAbove,92);
+ // An invalid pair shows the reason and is not queued as an update.
+ const {elements:f,calls:fc}=fixture();await f.next.emit('click');fc.length=0;
+ f.gainPoints.value='30:20,50:10';await f.gainPoints.emit('input');
+ assert.match(f.gainInfo.textContent,/Calibración/);assert.equal(fc.filter(c=>c[0]==='update').length,0);
+ await f.clearGain.emit('click');assert.equal(f.gainPoints.value,'');assert.match(f.gainInfo.textContent,/Sin compensación/);
+ // Recipes keep the calibration.
+ const recipes=require('../plugin/recipes');
+ const r=recipes.entry({name:'Mimaki negro',options:{gainPoints:'10:14,30:41',fillHolesMM:.25,solidAbove:95}});
+ assert.equal(r.options.gainPoints,'10:14,30:41');assert.equal(r.options.fillHolesMM,.25);
+ assert.throws(()=>recipes.entry({name:'x',options:{gainPoints:'30:20,50:10'}}),/Calibración/);
+});
+
+test('presets apply a complete look, keep size, calibration and costs, and ink estimate follows the result',async()=>{
+ const {elements:e,calls}=fixture();
+ assert.ok(e.presetSelect.children.length>=7,'built-in presets listed');assert.equal(e.presetSelect.children[0].value,'');
+ e.gainPoints.value='30:41';e.widthCM.value='20';e.inkColorPriceL.value='90';
+ e.presetSelect.value='preset:dark-fine';await e.presetSelect.emit('change');
+ assert.equal(e.lpi.value,40);assert.equal(e.angle.value,22.5);assert.equal(e.cleanup.value,'low');assert.equal(e.minDiameterMM.value,.12);
+ assert.equal(e.gainPoints.value,'30:41');assert.equal(e.widthCM.value,'20');assert.equal(e.inkColorPriceL.value,'90');
+ assert.match(e.presetNote.textContent,/40 LPI/);assert.match(e.status.textContent,/Preset aplicado/);
+ e.presetSelect.value='preset:light-logo';await e.presetSelect.emit('change');assert.equal(e.key.value,'#ffffff');assert.equal(e.lpi.value,35);
+ await e.next.emit('click');assert.equal(calls[0][2].lpi,35);assert.equal(calls[0][2].key,'#ffffff');
+ assert.match(e.inkEstimate.textContent,/^Tinta por pieza · color [\d.]+ ml · blanca [\d.]+ ml · cubre 50 % del área · costo /);
+ e.inkWhitePriceL.value='0';e.inkColorPriceL.value='0';await e.inkColorPriceL.emit('input');assert.doesNotMatch(e.inkEstimate.textContent,/costo/);
+ await e.apply.emit('click');assert.match(e.resultInfo.textContent,/Tinta por pieza/);
+});
+
+function sheetHost(host,calls){
+ host.measureFiles=async files=>files.map((f,i)=>i===1?{name:f.name,width:500,height:500,dpi:150}:{name:f.name,width:1772,height:2362,dpi:300});
+ host.buildSheet=async(sheet,files,o)=>{calls.push(['buildSheet',sheet.index,files.length,o.marks]);o.onProgress('place',1);return {documentID:50+sheet.index,width:sheet.width,height:sheet.height};};
+ host.exportPNG=async(id,file,check,approved)=>calls.push(['exportPNG',id,file.name,approved.width]);
+ host.exportWhite=async(id,file,opts)=>{calls.push(['white',id,file.name,opts.chokeMM,opts.format]);return {chokePX:2,whitePixels:50,colorPixels:100};};
+ host.closeDocument=async id=>calls.push(['closeDoc',id]);
+}
+test('gang sheet screen: measures files, plans with live feedback, saves color and white PNGs and closes the documents',async()=>{
+ const {elements:e,calls,host}=fixture();sheetHost(host,calls);
+ await e.openSheet.emit('click');assert.equal(e.sheetStage.className,'');assert.equal(e.stageBadge.textContent,'Pliegos');assert.match(e.sheetInfo.textContent,/Elige/);assert.equal(e.sheetBuild.disabled,true);
+ await e.sheetFiles.emit('click');
+ assert.match(e.status.textContent,/1 diseño añadido\. Omitidos: b\.png: 150 ppp/);assert.equal(e.sheetItems.children.length,1);
+ const copies=e.sheetItems.children[0].children[1];copies.value='4';await copies.emit('input');
+ assert.match(e.sheetInfo.textContent,/^4 piezas en 1 pliego: 58 × [\d.]+ cm · aprovechamiento \d+ % · film [\d.]+ m²\.$/);assert.equal(e.sheetBuild.disabled,false);
+ e.sheetMarks.checked=true;await e.sheetMarks.emit('change');e.sheetSpacingMM.value='3';await e.sheetSpacingMM.emit('input');
+ assert.match(e.sheetInfo.textContent,/separación/);assert.equal(e.sheetBuild.disabled,true);
+ e.sheetSpacingMM.value='6';await e.sheetSpacingMM.emit('input');e.sheetWhite.checked=true;await e.sheetWhite.emit('change');
+ e.whiteChokeMM.value='0.3';e.whiteFormat.value='alpha';
+ calls.length=0;await e.sheetBuild.emit('click');
+ const names=calls.map(c=>c[0]);assert.deepEqual(names,['buildSheet','exportPNG','white','closeDoc']);
+ assert.equal(calls[0][2],1);assert.equal(calls[0][3],true);assert.match(calls[1][2],/^pliego-01_58x[\d.]+cm_300ppp\.png$/);assert.equal(calls[1][3],6850);
+ assert.match(calls[2][2],/_blanco\.png$/);assert.equal(calls[2][3],.3);assert.equal(calls[2][4],'alpha');assert.equal(calls[3][1],50);
+ assert.match(e.status.textContent,/^Listo\./);
+ e.sheetKeepOpen.checked=true;await e.sheetKeepOpen.emit('change');calls.length=0;await e.sheetBuild.emit('click');assert.ok(!calls.some(c=>c[0]==='closeDoc'),'kept open on request');
+ await e.sheetClear.emit('click');assert.equal(e.sheetBuild.disabled,true);await e.sheetBack.emit('click');assert.equal(e.prepareStage.className,'');
+});
+test('result screen exports the white channel with the chosen contraction and file format',async()=>{
+ const {elements:e,calls,host}=fixture();sheetHost(host,calls);
+ await e.next.emit('click');assert.equal(e.exportWhite.disabled,true);await e.apply.emit('click');assert.equal(e.exportWhite.disabled,false);
+ e.whiteChokeMM.value='0.3';e.whiteFormat.value='alpha';calls.length=0;await e.exportWhite.emit('click');
+ const w=calls.find(c=>c[0]==='white');assert.equal(w[3],.3);assert.equal(w[4],'alpha');assert.equal(w[1],20);
+ assert.match(e.status.textContent,/contracción 2 px · el blanco cubre 50\.0 %/);
+ const recipes=require('../plugin/recipes'),r=recipes.entry({name:'RIP',options:{whiteChokeMM:.2,whiteFormat:'whiteOnBlack'}});assert.equal(r.options.whiteFormat,'whiteOnBlack');
+ assert.throws(()=>recipes.entry({name:'x',options:{whiteFormat:'rojo'}}),/Opción inválida/);
+});
+
+test('batch screen: white channel controls follow the checkbox and reach every variant with the chosen options',async()=>{
+ const {elements:e,calls,host}=fixture();
+ host.exportWhite=async(id,file,opts,check,progress,size)=>{calls.push(['white',file.name,opts]);await file.write('W');return {};};
+ e.whiteChokeMM.value='0.25';e.whiteFormat.value='whiteOnBlack';
+ await e.openBatch.emit('click');
+ assert.equal(e.whiteChokeMMBatch.value,'0.25');assert.equal(e.whiteFormatBatch.value,'whiteOnBlack','copied from the export screen');
+ assert.equal(e.whiteChokeMMBatch.disabled,true,'disabled until the checkbox is on');
+ e.batchWhite.checked=true;await e.batchWhite.emit('change');assert.equal(e.whiteChokeMMBatch.disabled,false);assert.equal(e.whiteFormatBatch.disabled,false);
+ e.whiteChokeMMBatch.value='0.1';await e.whiteChokeMMBatch.emit('input');e.whiteFormatBatch.value='alpha';await e.whiteFormatBatch.emit('change');
+ assert.equal(e.whiteChokeMM.value,'0.1');assert.equal(e.whiteFormat.value,'alpha','shared with the export screen');
+ await e.batchFiles.emit('click');await e.batchFolder.emit('click');calls.length=0;await e.batchRun.emit('click');
+ assert.match(e.batchProgress.textContent,/4 guardados · 0 errores/);
+ const white=calls.filter(c=>c[0]==='white');assert.equal(white.length,4);
+ for(const w of white){assert.match(w[1],/_blanco\.png$/);assert.equal(w[2].chokeMM,.1);assert.equal(w[2].format,'alpha');}
+ for(const b of calls.filter(c=>c[0]==='begin'))assert.equal(b[2].nativeMask,false);
+ e.batchWhite.checked=false;await e.batchWhite.emit('change');calls.length=0;await e.batchRun.emit('click');assert.equal(calls.filter(c=>c[0]==='white').length,0);
 });

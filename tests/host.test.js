@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
-function fixture({empty=false,cancel=false,semiExport=false}={}) {
+function fixture({empty=false,cancel=false,semiExport=false,nativeLayers=false,failNative=false}={}) {
   const calls=[],constants={DocumentMode:{RGB:'rgb'},BitsPerChannelType:{EIGHT:8},NewDocumentMode:{RGB:'rgb-new'},DocumentFill:{TRANSPARENT:'transparent'}};
   const original={id:7,name:'Art.psd',width:80,height:90,resolution:300,mode:'rgb',bitsPerChannel:8,pixelAspectRatio:1,activeLayers:[{id:11}]};
   const result={id:20,layers:[{id:21}],width:80,height:90,resolution:300,mode:'rgb',bitsPerChannel:8,saveAs:{png:async(...a)=>calls.push(['png',...a])}};
@@ -28,9 +28,35 @@ function fixture({empty=false,cancel=false,semiExport=false}={}) {
   const core={executeAsModal:async(fn,o)=>{calls.push(['modal',o]);try{return await fn(ctx);}finally{for(const id of autoClose)if(id===result.id)result.closeWithoutSaving();autoClose.clear();}}};
   const realTiles=require('../plugin/tiles'),stores=[];
   const tiles={...realTiles,createDiskStore:async(w,h,c=4)=>{const store=new realTiles.MemoryStore(w,h,c);store.kind='disk';stores.push(store);return store;}};
+  let action;
+  if(nativeLayers){
+    constants.ElementPlacement={PLACEAFTER:'placeAfter'};let selected=null;
+    const find=id=>result.layers.find(l=>l.id===id);
+    imaging.putLayerMask=async o=>{calls.push(['mask',o]);const layer=find(o.layerID);assert.ok(layer.mask,'mask exists before writing');assert.equal(o.imageData.data.length,result.width*result.height);layer.mask=o.imageData.data.slice();};
+    action={batchPlay:async descriptors=>{
+      calls.push(['batchPlay',descriptors]);
+      return descriptors.map(d=>{
+        if(failNative&&d._obj==='make')throw Error('make not supported');
+        const ref=d._target&&d._target[0];
+        if(d._obj==='select'&&ref._ref==='layer'){selected=ref._id;return {};}
+        if(d._obj==='make'&&d.new&&d.new._class==='channel'){find(selected).mask=new Uint8Array(result.width*result.height).fill(255);find(selected).maskEnabled=true;return {};}
+        if(d._obj==='make'&&ref&&ref._ref==='contentLayer'){
+          const layer={id:nextLayer++,kind:'fill',visible:true,color:d.using.type.color,
+            move:(relative,placement)=>{assert.equal(placement,'placeAfter');const rest=result.layers.filter(l=>l.id!==layer.id),i=rest.indexOf(relative);rest.splice(i+1,0,layer);result.layers=rest;},
+            delete:()=>{result.layers=result.layers.filter(l=>l.id!==layer.id);}};
+          result.layers=[layer,...result.layers];selected=layer.id;return {};
+        }
+        if(d._obj==='set'&&d.to._obj==='layer'){find(ref._id).maskEnabled=d.to.userMaskEnabled;return {};}
+        if(d._obj==='set'&&d.to._obj==='solidColorLayer'){find(selected).color=d.to.color;return {};}
+        if(d._obj==='delete'&&ref._value==='mask'){find(selected).mask=null;return {};}
+        if(d._obj==='get'){const layer=find(ref._id);return {hasUserMask:!!(layer&&layer.mask)};}
+        throw Error('Unexpected descriptor '+JSON.stringify(d));
+      });
+    }};
+  }
   const module={exports:{}};
   vm.runInNewContext(fs.readFileSync(require.resolve('../plugin/host'),'utf8'),{module,
-    require:name=>name==='photoshop'?{app,imaging,core,constants}:name==='./tiles'?tiles:require('../plugin/'+name.replace('./','')),
+    require:name=>name==='photoshop'?{app,imaging,core,constants,action}:name==='./tiles'?tiles:require('../plugin/'+name.replace('./','')),
     Uint8Array,Array,setTimeout,Promise});
   return {host:module.exports,calls,app,original,result,stores,imaging};
 }
@@ -259,4 +285,172 @@ test('original workspace view never reads printable output; fast updates still c
  const layerID=s.layerID;let checks=0;
  await assert.rejects(f.host.updateSession(s,{...o,detailPreview:false},{check:()=>{if(++checks>6)throw Error('superseded');},pause:async()=>{throw Error('Unneeded pause');}},()=>{}),/superseded/);
  assert.equal(s.layerID,layerID);await f.host.cancelSession(s);
+});
+
+const {processRGBA}=require('../plugin/engine');
+const ctxOK={check:()=>{},pause:async()=>{},current:()=>true};
+test('native session: art layer + user mask + garment fill; sliders rewrite only the mask',async()=>{
+ const f=fixture({nativeLayers:true}),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50,key:'#102030',detailPreview:false};
+ const s=await f.host.beginSession('layer',o);
+ assert.equal(s.native,true);assert.deepEqual(f.result.layers.map(l=>l.kind||'art'),['art','fill']);
+ const art=f.result.layers[0],fill=f.result.layers[1];assert.equal(fill.id,s.fillLayerID);assert.deepEqual(fill.color,{_obj:'RGBColor',red:16,grain:32,blue:48});
+ // RGB keeps every source pixel opaque; the mask decides what prints.
+ assert.equal(art.data[(17*80+13)*4+3],255);assert.equal(art.data[3],0);assert.equal(art.mask[17*80+13],255);assert.equal(art.mask[0],0);
+ const puts=f.calls.filter(c=>c[0]==='put').length,masks=f.calls.filter(c=>c[0]==='mask').length;
+ await f.host.updateSession(s,{...o,outputWhite:100},ctxOK,()=>{});
+ assert.equal(f.calls.filter(c=>c[0]==='put').length,puts,'levels do not rewrite RGB');
+ assert.equal(f.calls.filter(c=>c[0]==='mask').length,masks+1);
+ const ink=art.mask.reduce((n,v)=>n+(v===255),0);assert.ok(ink>0&&ink<150);assert.ok(art.mask.every(v=>v===0||v===255));
+ await f.host.updateSession(s,{...o,outputWhite:100,shadowBoost:40},ctxOK,()=>{});
+ assert.equal(f.calls.filter(c=>c[0]==='put').length,puts+1,'color options rewrite RGB once');
+ await f.host.updateSession(s,{...o,outputWhite:120,shadowBoost:40},ctxOK,()=>{});
+ assert.equal(f.calls.filter(c=>c[0]==='put').length,puts+1);
+ await f.host.cancelSession(s);assert.deepEqual(f.app.documents.map(d=>d.id),[7]);assert.equal(s.mask,null);
+});
+test('native views toggle layers without writing pixels; compare and mask use a temporary layer',async()=>{
+ const f=fixture({nativeLayers:true}),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50,key:'#000000'};
+ const s=await f.host.beginSession('layer',o),art=f.result.layers[0],fill=f.result.layers[1],puts=f.calls.filter(c=>c[0]==='put').length;
+ await f.host.workspaceView(s,'transparent',o);assert.equal(fill.visible,false);assert.equal(art.maskEnabled,true);
+ await f.host.workspaceView(s,'original',o);assert.equal(fill.visible,false);assert.equal(art.maskEnabled,false);
+ await f.host.workspaceView(s,'beforeGarment',o);assert.equal(fill.visible,true);assert.equal(art.maskEnabled,false);
+ await f.host.workspaceView(s,'garment',{...o,linkBackground:false,previewColor:'#ff0000'});assert.equal(art.maskEnabled,true);assert.deepEqual(fill.color,{_obj:'RGBColor',red:255,grain:0,blue:0});
+ assert.equal(f.calls.filter(c=>c[0]==='put').length,puts);
+ await f.host.workspaceView(s,'mask',o);assert.equal(f.result.layers.length,3);
+ const overlay=f.result.layers.find(l=>l.id===s.workspaceLayerID).data;
+ for(let p=0;p<80*90;p++)assert.equal(overlay[p*4],art.mask[p]);
+ await f.host.workspaceView(s,'garment',o);assert.equal(f.result.layers.length,2);assert.equal(s.workspaceLayerID,null);
+ await f.host.cancelSession(s);
+});
+test('applying a native session leaves one layer with binary alpha equal to the full engine',async()=>{
+ const f=fixture({nativeLayers:true}),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50,detailPreview:false};
+ const s=await f.host.beginSession('layer',o);await f.host.updateSession(s,{...o,outputWhite:140},ctxOK,()=>{});
+ await f.host.workspaceView(s,'mask',o);
+ await f.host.clearWorkspace(s);
+ assert.equal(f.result.layers.length,1);assert.equal(f.result.layers[0].id,s.layerID);assert.equal(f.result.layers[0].mask,null);
+ const reference=await processRGBA(s.source,80,90,{...o,outputWhite:140,dpi:300});
+ assert.deepEqual(f.result.layers[0].data,reference.data);
+ await f.host.releaseSession(s);assert.equal(s.closed,true);
+});
+test('protection modes on a native session use the full engine and keep protected color',async()=>{
+ const f=fixture({nativeLayers:true}),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50,detailPreview:false};const s=await f.host.beginSession('layer',o);
+ f.original.selection.bounds={left:13,top:17,right:14,bottom:18};await f.host.captureProtection(s);
+ const n={...o,knockout:true,key:'#e62878',protection:'selection',outputWhite:0,cleanup:'high',minDiameterMM:.3};
+ await f.host.updateSession(s,n,ctxOK,()=>{});
+ const art=f.result.layers[0];assert.equal(art.mask[17*80+13],255);assert.equal(s.stats.inkPixels,1);
+ await f.host.clearWorkspace(s);const reference=await processRGBA(s.source,80,90,{...n,dpi:300,protectMask:s.protectStore.data});
+ assert.deepEqual(f.result.layers[0].data,reference.data);await f.host.cancelSession(s);
+});
+test('if native layer operations fail, the session falls back to full-layer updates',async()=>{
+ const f=fixture({nativeLayers:true,failNative:true}),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50};
+ const s=await f.host.beginSession('layer',o);assert.ok(!s.native);assert.match(s.nativeWarning,/máscara nativa/);
+ assert.deepEqual(f.app.documents.map(d=>d.id),[7,20]);assert.equal(f.result.layers.length,1);
+ await f.host.updateSession(s,{...o,outputWhite:140},ctxOK,()=>{});await f.host.cancelSession(s);
+});
+
+// ── white channel and gang sheets ──
+function multiDoc(f){
+  // The shared fixture reuses one result document; give every new document its own pixels.
+  let id=40;const calls=f.calls;
+  f.app.createDocument=async o=>{
+    const doc={id:id++,name:o.name,width:o.width,height:o.height,resolution:o.resolution,mode:'rgb',bitsPerChannel:8,pixelAspectRatio:1,layers:[],
+      saveAs:{png:async(...a)=>calls.push(['png',doc.id,...a])},closeWithoutSaving:()=>{calls.push(['close',doc.id]);f.app.documents=f.app.documents.filter(d=>d.id!==doc.id);},
+      createPixelLayer:async()=>{const l={id:doc.id*100+doc.layers.length,delete(){}};doc.layers.push(l);return l;}};
+    doc.layers.push({id:doc.id*100,delete(){}});f.app.documents.push(doc);calls.push(['create',o]);return doc;
+  };
+  f.imaging.putPixels=async o=>{
+    calls.push(['put',o]);const doc=f.app.documents.find(d=>d.id===o.documentID),layer=doc.layers.find(l=>l.id===o.layerID);
+    if(o.replace||!layer.data)layer.data=new Uint8Array(doc.width*doc.height*4);
+    for(let y=0;y<o.imageData.height;y++)for(let x=0;x<o.imageData.width;x++){
+      const dst=((o.targetBounds.top+y)*doc.width+o.targetBounds.left+x)*4,src=(y*o.imageData.width+x)*4;
+      assert.ok(o.targetBounds.left+x>=0&&o.targetBounds.left+x<doc.width&&o.targetBounds.top+y>=0&&o.targetBounds.top+y<doc.height,'write inside document');
+      layer.data.set(o.imageData.data.subarray(src,src+4),dst);
+    }
+  };
+}
+const pixelAt=(doc,x,y)=>Array.from(doc.layers[0].data.subarray((y*doc.width+x)*4,(y*doc.width+x)*4+4));
+async function colorResult(f){const r=await f.host.apply('layer',{knockout:false,minDiameterMM:0});multiDoc(f);return r;}
+test('white channel exports a contracted PNG without erasing the color layer and reports its pixels',async()=>{
+ const f=fixture(),color=await colorResult(f);f.app.documents.push(f.result);
+ const before=f.calls.filter(c=>c[0]==='put').length;
+ const r=await f.host.exportWhite(color.documentID,{name:'blanco.png'},{chokeMM:25.4/300,format:'blackOnWhite'});
+ assert.equal(r.colorPixels,150);assert.equal(r.whitePixels,8*13);assert.equal(r.chokePX,1);
+ const white=f.app.documents.find(d=>d.id===40)||f.calls.filter(c=>c[0]==='create').length;
+ const png=f.calls.find(c=>c[0]==='png');assert.ok(png&&png[2].name==='blanco.png'&&png[4]===true);
+ assert.ok(f.calls.some(c=>c[0]==='close'&&c[1]===40),'white document closed');
+ assert.ok(f.calls.filter(c=>c[0]==='put').length>before);
+ const made=f.calls.find(c=>c[0]==='create'&&c[1].name.startsWith('DTF blanco'));assert.equal(made[1].width,80);assert.equal(made[1].height,90);
+});
+test('white channel pixels: inner block is ink, ring and background are not, for every file format',async()=>{
+ for(const [format,ink,empty] of [['blackOnWhite',[0,0,0,255],[255,255,255,255]],['alpha',[255,255,255,255],[0,0,0,0]],['whiteOnBlack',[255,255,255,255],[0,0,0,255]]]){
+  const f=fixture(),color=await colorResult(f);f.app.documents.push(f.result);
+  let docRef;const create=f.app.createDocument;f.app.createDocument=async o=>{docRef=await create(o);return docRef;};
+  // keep the document readable after the export closes it
+  const closing=[];const origPut=f.imaging.putPixels;f.imaging.putPixels=async o=>{await origPut(o);const d=f.app.documents.find(x=>x.id===o.documentID);if(d&&d.name.startsWith('DTF blanco'))closing[0]=d;};
+  await f.host.exportWhite(color.documentID,{name:'b.png'},{chokeMM:25.4/300,format});
+  assert.deepEqual(pixelAt(closing[0],18,24),ink,format+' inside');assert.deepEqual(pixelAt(closing[0],13,17),empty,format+' contracted corner');assert.deepEqual(pixelAt(closing[0],0,0),empty,format+' background');
+ }
+});
+test('white channel refuses semitransparent, empty or resized results and invalid options before writing',async()=>{
+ const g=fixture({semiExport:true}),c=await g.host.apply('layer',{knockout:false,minDiameterMM:0});g.app.documents.push(g.result);
+ await assert.rejects(g.host.exportWhite(c.documentID,{name:'x.png'},{}),/semitrans/);assert.ok(!g.calls.some(x=>x[0]==='png'));
+ const e=fixture(),ce=await e.host.apply('layer',{knockout:false,minDiameterMM:0});e.app.documents.push(e.result);e.imaging.getPixels=async o=>({level:0,sourceBounds:o.sourceBounds,imageData:{width:0,height:0,components:4,getData:async()=>new Uint8Array(0),dispose(){}}});
+ await assert.rejects(e.host.exportWhite(ce.documentID,{name:'x.png'},{}),/vacío/);
+ const h=fixture(),ch=await h.host.apply('layer',{knockout:false,minDiameterMM:0});h.app.documents.push(h.result);
+ await assert.rejects(h.host.exportWhite(ch.documentID,{name:'x.png'},{chokeMM:9}),/0 a 5 mm/);h.result.width=40;
+ await assert.rejects(h.host.exportWhite(ch.documentID,{name:'x.png'},{}),/tamaño cambió/);assert.ok(!h.calls.some(x=>x[0]==='png'));
+});
+
+function designs(f){
+  const make=(id,w,h,extra={})=>({id,name:'diseño'+id,width:w,height:h,resolution:300,mode:'rgb',bitsPerChannel:8,pixelAspectRatio:1,...extra,
+    closeWithoutSaving(){f.calls.push(['closeDesign',id]);f.app.documents=f.app.documents.filter(d=>d.id!==id);}});
+  f.app.open=async file=>{f.app.documents.push(file.doc);return file.doc;};
+  f.imaging.getPixels=async o=>{
+    const doc=f.app.documents.find(d=>d.id===o.documentID),b=o.sourceBounds,l=Math.max(0,b.left),t=Math.max(0,b.top),r=Math.min(doc.width,b.right),bt=Math.min(doc.height,b.bottom);
+    const w=r-l,h=bt-t,data=new Uint8Array(w*h*4);
+    for(let y=0;y<h;y++)for(let x=0;x<w;x++)data.set([(l+x)%256,(t+y)%256,doc.id,255],(y*w+x)*4);
+    return {level:0,sourceBounds:{left:l,top:t,right:r,bottom:bt},imageData:{width:w,height:h,components:4,getData:async()=>data,dispose(){}}};
+  };
+  return make;
+}
+const sheetPlan=()=>({index:0,width:400,height:300,widthCM:33.9,heightCM:25.4,placements:[
+ {id:0,name:'A',x:100,y:100,width:20,height:30,rotated:false,sourceWidth:20,sourceHeight:30},
+ {id:1,name:'B',x:200,y:100,width:30,height:20,rotated:true,sourceWidth:20,sourceHeight:30}]});
+test('sheet is assembled tile by tile, rotating designs, drawing cut marks and closing every source',async()=>{
+ const f=fixture();multiDoc(f);const make=designs(f);
+ const files=[{doc:make(31,20,30)},{doc:make(32,20,30)}],plan=sheetPlan(),progress=[];
+ const sheet=await f.host.buildSheet(plan,files,{marks:true,onProgress:(p,v)=>progress.push([p,v])});
+ const doc=f.app.documents.find(d=>d.id===sheet.documentID);assert.equal(doc.width,400);assert.equal(doc.height,300);assert.equal(doc.resolution,300);
+ assert.deepEqual(pixelAt(doc,100,100),[0,0,31,255]);assert.deepEqual(pixelAt(doc,119,129),[19,29,31,255]);assert.deepEqual(pixelAt(doc,99,100),[0,0,0,0]);
+ // B is rotated 90° clockwise: source (x,y) -> (200+29-y, 100+x)
+ for(const [x,y] of [[0,0],[19,0],[0,29],[7,11],[19,29]])assert.deepEqual(pixelAt(doc,200+29-y,100+x),[x,y,32,255],`rot ${x},${y}`);
+ const {marks}=require('../plugin/sheet');
+ for(const p of plan.placements)for(const m of marks(p)){assert.deepEqual(pixelAt(doc,m.left,m.top),[0,0,0,255]);assert.deepEqual(pixelAt(doc,m.left+m.width-1,m.top+m.height-1),[0,0,0,255]);}
+ assert.deepEqual(f.app.documents.map(d=>d.id).sort(),[7,sheet.documentID].sort(),'design documents closed');
+ assert.deepEqual(progress.at(-1),['place',1]);
+ await f.host.exportPNG(sheet.documentID,{name:'pliego.png'});assert.ok(f.calls.some(c=>c[0]==='png'));
+ await f.host.closeDocument(sheet.documentID);assert.deepEqual(f.app.documents.map(d=>d.id),[7]);
+});
+test('sheet building cleans up on a changed, low-resolution or missing design',async()=>{
+ for(const [label,files,pattern] of [
+  ['size',make=>[{doc:make(31,21,30)},{doc:make(32,20,30)}],/cambió de tamaño/],
+  ['ppi',make=>[{doc:make(31,20,30,{resolution:150})},{doc:make(32,20,30)}],/300 ppp/],
+  ['missing',make=>[{doc:make(31,20,30)}],/Falta el archivo/]]){
+  const f=fixture();multiDoc(f);const make=designs(f);
+  await assert.rejects(f.host.buildSheet(sheetPlan(),files(make),{}),pattern,label);
+  assert.deepEqual(f.app.documents.map(d=>d.id),[7],label+': no document left open');
+ }
+ const g=fixture();multiDoc(g);await assert.rejects(g.host.buildSheet({...sheetPlan(),width:12000,height:12000},[],{}),/128 megap/);assert.ok(!g.calls.some(c=>c[0]==='create'));
+});
+test('measuring files reports size and ppi, and keeps going after an unreadable file',async()=>{
+ const f=fixture(),make=designs(f);
+ const list=await f.host.measureFiles([{name:'a.png',doc:make(31,2953,3543)},{name:'b.png',doc:make(32,10,10,{mode:'cmyk'})},{name:'c.png',doc:make(33,50,60,{resolution:150})}]);
+ assert.deepEqual(JSON.parse(JSON.stringify(list[0])),{name:'a.png',width:2953,height:3543,dpi:300});assert.match(list[1].error,/RGB/);assert.equal(list[2].dpi,150);
+ assert.deepEqual(f.app.documents.map(d=>d.id),[7],'all measured files closed');
+});
+test('nativeMask:false (batch and self-test) keeps a single flat printable layer even when native layers are available',async()=>{
+ const f=fixture({nativeLayers:true}),o={knockout:false,minDiameterMM:0,focusX:50,focusY:50,nativeMask:false};
+ const s=await f.host.beginSession('layer',o);assert.ok(!s.native);assert.equal(f.result.layers.length,1);assert.equal(f.result.layers[0].mask,undefined);
+ assert.ok(!f.calls.some(c=>c[0]==='batchPlay'),'no layer structure was created');
+ f.app.documents.push(f.result);await f.host.exportPNG(s.documentID,{name:'lote.png'},()=>{},s.size);assert.ok(f.calls.some(c=>c[0]==='png'));
+ const g=fixture({nativeLayers:true}),live=await g.host.beginSession('layer',{...o,nativeMask:true});assert.equal(live.native,true,'interactive sessions still use the mask');
 });
