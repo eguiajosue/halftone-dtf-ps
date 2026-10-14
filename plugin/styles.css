@@ -57,7 +57,7 @@ sp-slider{width:100%;margin:3px 0 0;}#levelsControls h2{margin:0;}
 .chips{display:flex;flex-wrap:wrap;}.chips sp-checkbox{min-width:48px;flex:0;margin:0 8px 7px 0;}#assignmentPanel{padding:12px;background:#2c2c2c;border-radius:6px;margin:7px 0;}
 #resetLevels{width:35%;flex:none;}#sessionInfo{margin:5px 0;}
 
-#prepareStage,#editStage,#resultStage,#batchStage{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;}
+#prepareStage,#editStage,#resultStage,#batchStage,#sheetStage{display:flex;flex-direction:column;flex:1;min-height:0;overflow:auto;}
 .stage-content{flex:1;min-height:0;overflow:auto;padding-right:2px;}
 .stage-actions{flex:none;border-top:1px solid #3d3d3d;padding-top:6px;}
 #toolsPanel,#helpPanel,#recipesPanel,#updatesPanel{max-height:45vh;overflow:auto;flex:none;}
@@ -90,3 +90,8 @@ sp-action-button{--mod-actionbutton-content-color-default-selected:#fff;--mod-ac
 #prepareContent .prepare-card{padding:4px 0;}#prepareContent .section-heading{margin-bottom:6px;}#prepareContent label{margin-bottom:6px;}
 #prepareContent input,#prepareContent select{height:30px;margin-top:4px;}#prepareTrama{padding:8px 10px;}#prepareTrama .row>label{margin-bottom:2px;}
 #prepareContent .check{margin-bottom:4px;}#prepareContent .hint{margin:2px 0 6px;}#prepareContent{padding-bottom:6px;}
+
+/* Gang sheet */
+.sheet-row{display:flex;align-items:center;margin:0 0 6px;}.sheet-row span{flex:1;min-width:0;font-size:11px;color:#d6d6d6;word-break:break-all;}
+.sheet-row input{width:56px;height:26px;margin:0 0 0 8px;padding:3px 6px;text-align:center;flex:none;}
+#sheetItems{max-height:150px;overflow:auto;margin:4px 0 6px;}#sheetInfo{color:#b1d3c4;font-size:11px;}

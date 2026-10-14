@@ -6,17 +6,18 @@ const {LiveController}=require('./live');
 const sizing=require('./sizing');
 const batch=require('./batch');
 const {runBatch}=batch;
-const ink=require('./ink'),presets=require('./presets');
+const ink=require('./ink'),presets=require('./presets'),sheetLib=require('./sheet');
 const recipesAPI=require('./recipes'),projects=require('./project'),diagnostics=require('./diagnostics');
 const {CONTROL_SELECTOR,bootstrap}=require('./ui-controls');
 const $=id=>document.getElementById(id);
 const levels={inputBlack:7,inputMidtone:2,inputWhite:100,outputBlack:0,outputWhite:255};
-const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','fillHolesMM','solidAbove','inkColorMLm2','inkWhiteMLm2','inkColorPriceL','inkWhitePriceL','filmPriceM2','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
+const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','fillHolesMM','solidAbove','inkColorMLm2','inkWhiteMLm2','inkColorPriceL','inkWhitePriceL','filmPriceM2','whiteChokeMM','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
 const checks=['knockout','recover','linkBackground','halftone','defringe','trimArt','convertCopy'];
-const settingIDs=['source','key',...checks,...numeric,'shape','cleanup','viewMode','previewColor','sizeAxis','placement','shirtSize','memoryMode','protection','units','garment','previewScope','gainPoints'];
+const settingIDs=['source','key',...checks,...numeric,'shape','cleanup','viewMode','previewColor','sizeAxis','placement','shirtSize','memoryMode','protection','units','garment','previewScope','gainPoints','whiteFormat'];
 const colorIDs=['key','knockout','tolerance','softness'];
 let busy=false,stage='prepare',previewCache=null,outputID=null,sourceInfo=null,session=null,live=null,paintRevision=0;
 let batchFiles=[],batchFolder=null,batchToken=null,batchReturnStage='prepare';
+let sheetItems=[],sheetPlan=null,sheetReturnStage='prepare';
 const batchSharedIDs=['key','knockout','tolerance','softness','shape','lpi','angle','cleanup','halftone','alphaThreshold','recover','defringe','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','minDiameterMM',...Object.keys(levels)];
 let previewPixels=512;
 let approvedResult=null;
@@ -80,7 +81,7 @@ function controls(){
   }
   syncCleanup();
   $('next').disabled=busy||!sourceInfo;$('apply').disabled=busy||!session;
-  $('export').disabled=busy||outputID===null;$('previewColor').disabled=busy||$('linkBackground').checked;
+  $('export').disabled=busy||outputID===null;$('exportWhite').disabled=busy||outputID===null;$('sheetBuild').disabled=busy||!sheetPlan;$('previewColor').disabled=busy||$('linkBackground').checked;
   $('batchRun').disabled=busy||!batchFiles.length||!batchFolder;
   $('batchCancel').disabled=!batchToken||batchToken.cancelled;
   $('cancelPreparation').disabled=!initialToken||initialToken.cancelled;$('cancelPreparation').className=initialToken?'':'hidden';
@@ -94,9 +95,9 @@ function controls(){
 }
 function showStage(next){
   stage=next;for(const [name,id]of [['prepare','stepPrepare'],['edit','stepEdit'],['result','stepResult']])$(id).className=next===name?'current':'';
-  for(const id of ['prepare','edit','result','batch'])$(id+'Stage').className=id===next?'':'hidden';
-  $('stageBadge').textContent={prepare:'Preparar',edit:'Ajustar',result:'Exportar',batch:'Lotes'}[next];
-  $('stepLabel').textContent={prepare:'1 · Preparar impresión',edit:'2 · Editar semitonos',result:'Resultado · listo para exportar',batch:'Lotes · imágenes × tallas'}[next];controls();
+  for(const id of ['prepare','edit','result','batch','sheet'])$(id+'Stage').className=id===next?'':'hidden';
+  $('stageBadge').textContent={prepare:'Preparar',edit:'Ajustar',result:'Exportar',batch:'Lotes',sheet:'Pliegos'}[next];
+  $('stepLabel').textContent={prepare:'1 · Preparar impresión',edit:'2 · Editar semitonos',result:'Resultado · listo para exportar',batch:'Lotes · imágenes × tallas',sheet:'Pliegos · varios diseños en un rollo'}[next];controls();
 }
 async function action(fn){
   if(busy)return;busy=true;controls();
@@ -196,6 +197,58 @@ function batchInfo(){
 }
 function batchAreaDefaults(){for(const size of allSizes){const child=sizing.CHILD_SIZES.includes(size),active=child===($('garment').value==='child');$('batchRow'+size).className=active?'size-row':'size-row hidden';
   const area=sizing.garmentArea($('batchPlacement').value,size,child?'child':'adult',profileAreas[$('batchPlacement').value]?.[size]);$('batchWidth'+size).value=area[0];$('batchHeight'+size).value=area[1];}}
+// ── Gang sheets ──
+function sheetOptions(){
+  const roll=$('sheetRoll').value;
+  return {widthCM:roll==='custom'?Number($('sheetWidthCM').value):Number(roll),maxLengthCM:Number($('sheetMaxLengthCM').value),spacingMM:Number($('sheetSpacingMM').value),
+    marginMM:Number($('sheetMarginMM').value),rotate:$('sheetRotate').checked,marks:$('sheetMarks').checked};
+}
+function saveSheetPrefs(){
+  try{localStorage.setItem('halftone-sheet-v1',JSON.stringify({roll:$('sheetRoll').value,custom:$('sheetWidthCM').value,max:$('sheetMaxLengthCM').value,spacing:$('sheetSpacingMM').value,
+    margin:$('sheetMarginMM').value,rotate:$('sheetRotate').checked,marks:$('sheetMarks').checked,white:$('sheetWhite').checked,keep:$('sheetKeepOpen').checked}));}catch(_){}
+}
+function loadSheetPrefs(){
+  try{const o=JSON.parse(localStorage.getItem('halftone-sheet-v1')||'{}');
+    if(o.roll!=null)$('sheetRoll').value=o.roll;if(o.custom!=null)$('sheetWidthCM').value=o.custom;if(o.max!=null)$('sheetMaxLengthCM').value=o.max;
+    if(o.spacing!=null)$('sheetSpacingMM').value=o.spacing;if(o.margin!=null)$('sheetMarginMM').value=o.margin;
+    for(const [id,key]of [['sheetRotate','rotate'],['sheetMarks','marks'],['sheetWhite','white'],['sheetKeepOpen','keep']])if(o[key]!=null)$(id).checked=Boolean(o[key]);
+  }catch(_){}
+  $('sheetCustomRow').className=$('sheetRoll').value==='custom'?'':'hidden';
+}
+function planSheet(){
+  sheetPlan=null;
+  if(!sheetItems.length){$('sheetInfo').textContent='Elige uno o más diseños.';controls();return;}
+  try{
+    const plan=sheetLib.plan(sheetItems.map((item,id)=>({id,name:item.name,width:item.width,height:item.height,copies:Number(item.input.value)})),sheetOptions());
+    const film=ink.normalize(settings()).filmPriceM2;
+    $('sheetInfo').textContent=`${plan.pieces} piezas en ${plan.sheets.length} pliego${plan.sheets.length>1?'s':''}: ${plan.sheets.map(sheet=>`${sheet.widthCM.toFixed(0)} × ${sheet.heightCM.toFixed(1)} cm`).join(' + ')} · aprovechamiento ${plan.usedPercent.toFixed(0)} % · film ${plan.totalAreaM2.toFixed(2)} m²`+(film>0?` · costo de film ${(plan.totalAreaM2*film).toFixed(2)}`:'')+'.';
+    sheetPlan=plan;
+  }catch(e){$('sheetInfo').textContent=e.message;}
+  controls();
+}
+function renderSheetItems(){
+  const box=$('sheetItems');box.innerHTML='';
+  for(const item of sheetItems){
+    const row=document.createElement('div');row.className='sheet-row';
+    const label=document.createElement('span');label.textContent=`${item.name} · ${(item.width/300*2.54).toFixed(1)} × ${(item.height/300*2.54).toFixed(1)} cm`;
+    const input=document.createElement('input');input.type='number';input.min='0';input.max='999';input.step='1';input.value=item.input?item.input.value:'1';input.title='Copias';
+    input.addEventListener('input',planSheet);item.input=input;row.appendChild(label);row.appendChild(input);box.appendChild(row);
+  }
+  $('sheetFilesInfo').textContent=sheetItems.length?`${sheetItems.length} diseño${sheetItems.length>1?'s':''}. Escribe las copias de cada uno (0 lo excluye).`:'Usa los PNG que ya exportaste. Cada diseño se coloca tal cual, sin remuestrear.';
+}
+async function uniqueFile(folder,name){
+  for(let n=0;n<100;n++){
+    const candidate=n?name.replace(/\.png$/,'_r'+(n+1)+'.png'):name;
+    try{return await folder.createFile(candidate,{overwrite:false});}
+    catch(e){if(!(await folder.getEntries()).some(entry=>entry.name===candidate))throw e;}
+  }
+  throw Error('No se pudo crear un archivo nuevo en la carpeta.');
+}
+function whiteOptions(){return {chokeMM:Number($('whiteChokeMM').value),format:$('whiteFormat').value};}
+function openSheet(){
+  if(busy||session)return;sheetReturnStage=stage==='sheet'?sheetReturnStage:stage;loadSheetPrefs();renderSheetItems();showStage('sheet');planSheet();
+  status('Elige los diseños y cuántas copias de cada uno.');
+}
 function openBatch(){
   if(busy||session)return;batchReturnStage=stage;ensureEditDefaults();
   for(const id of batchSharedIDs){if(checks.includes(id))$(id+'Batch').checked=$(id).checked;else $(id+'Batch').value=$(id).value;}
@@ -288,6 +341,50 @@ function init(){
   }));
   $('newJob').addEventListener('click',()=>{if(busy)return;outputID=null;showStage('prepare');status('Selecciona un origen o conserva el anterior para otro tramado.');});
   $('openBatch').addEventListener('click',openBatch);$('openBatchResult').addEventListener('click',openBatch);
+ $('openSheet').addEventListener('click',openSheet);$('openSheetResult').addEventListener('click',openSheet);
+ $('sheetBack').addEventListener('click',()=>{if(!busy)showStage(sheetReturnStage);});
+ $('sheetClear').addEventListener('click',()=>{if(busy)return;sheetItems=[];renderSheetItems();planSheet();});
+ for(const id of ['sheetRoll','sheetWidthCM','sheetMaxLengthCM','sheetSpacingMM','sheetMarginMM','sheetRotate','sheetMarks','sheetWhite','sheetKeepOpen'])
+  $(id).addEventListener(['sheetRoll','sheetRotate','sheetMarks','sheetWhite','sheetKeepOpen'].includes(id)?'change':'input',()=>{
+   $('sheetCustomRow').className=$('sheetRoll').value==='custom'?'':'hidden';saveSheetPrefs();planSheet();});
+ $('sheetFiles').addEventListener('click',()=>action(async()=>{
+  const picked=await storage.localFileSystem.getFileForOpening({allowMultiple:true,types:['png']});
+  if(!picked||!picked.length)return status('Selección cancelada.');
+  if(sheetItems.length+picked.length>200)throw Error('Máximo 200 diseños por pliego.');
+  status('Midiendo diseños…');const list=await host.measureFiles(picked),problems=[];let added=0;
+  list.forEach((m,i)=>{
+   if(m.error)return problems.push(`${m.name}: ${m.error}`);
+   if(Math.abs(m.dpi-300)>.5)return problems.push(`${m.name}: ${m.dpi} ppp (se necesitan 300).`);
+   sheetItems.push({file:picked[i],name:m.name,width:m.width,height:m.height});added++;
+  });
+  renderSheetItems();planSheet();
+  status(`${added} diseño${added===1?'':'s'} añadido${added===1?'':'s'}.`+(problems.length?' Omitidos: '+problems.join(' · '):''));
+ }));
+ $('sheetBuild').addEventListener('click',()=>action(async()=>{
+  planSheet();if(!sheetPlan)throw Error($('sheetInfo').textContent);
+  const folder=await storage.localFileSystem.getFolder();if(!folder)return status('Creación cancelada.');
+  const files=sheetItems.map(item=>item.file),options=sheetOptions(),made=[],total=sheetPlan.sheets.length;
+  for(const sheetPart of sheetPlan.sheets){
+   const label=`Pliego ${sheetPart.index+1}/${total}`,base=`pliego-${String(sheetPart.index+1).padStart(2,'0')}_${sheetPart.widthCM.toFixed(0)}x${sheetPart.heightCM.toFixed(1)}cm_300ppp`;
+   const sheet=await host.buildSheet(sheetPart,files,{marks:options.marks,onProgress:(phase,p)=>status(`${label}: colocando diseños ${Math.round(p*100)} %`)});
+   const approved={width:sheet.width,height:sheet.height};
+   try{
+    const file=await uniqueFile(folder,base+'.png');status(`${label}: guardando PNG…`);
+    await host.exportPNG(sheet.documentID,file,()=>{},approved);made.push(file.name);
+    if($('sheetWhite').checked){
+     const whiteFile=await uniqueFile(folder,base+'_blanco.png');
+     await host.exportWhite(sheet.documentID,whiteFile,whiteOptions(),()=>{},(phase,p)=>status(`${label}: canal blanco ${({read:'leyendo',white:'contrayendo',write:'escribiendo'}[phase]||'procesando')} ${Math.round(p*100)} %`),approved);made.push(whiteFile.name);
+    }
+   }finally{if(!$('sheetKeepOpen').checked)await host.closeDocument(sheet.documentID);}
+  }
+  status('Listo. Guardado en la carpeta elegida: '+made.join(', ')+'.');
+ }));
+ $('exportWhite').addEventListener('click',()=>action(async()=>{
+  const file=await storage.localFileSystem.getFileForSaving('halftone-dtf-blanco-300ppp.png',{types:['png']});
+  if(!file)return status('Exportación cancelada.');
+  const r=await host.exportWhite(outputID,file,whiteOptions(),()=>{},(phase,p)=>status(`Canal blanco: ${({read:'leyendo el color',white:'contrayendo',write:'escribiendo'}[phase]||'procesando')} ${Math.round(p*100)} %`),approvedResult);
+  status(`Canal blanco exportado · contracción ${r.chokePX} px · el blanco cubre ${(r.whitePixels/r.colorPixels*100).toFixed(1)} % del área de color.`);
+ }));
   $('batchBack').addEventListener('click',()=>{if(!busy)showStage(batchReturnStage);});
   $('batchFiles').addEventListener('click',()=>action(async()=>{
     const selected=await storage.localFileSystem.getFileForOpening({allowMultiple:true,types:['png','jpg','jpeg','tif','tiff','psd','bmp']});

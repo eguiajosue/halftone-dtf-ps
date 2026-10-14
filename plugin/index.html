@@ -23,6 +23,7 @@
       </header>
       <section id="toolsPanel" class="hidden">
         <sp-action-button size="s" quiet id="openBatch">Procesar lote</sp-action-button>
+        <sp-action-button size="s" quiet id="openSheet">Armar pliego (gang sheet)</sp-action-button>
         <sp-action-button size="s" quiet id="toggleCalibration">Calibración de punto</sp-action-button>
         <sp-action-button size="s" quiet id="toggleInk">Costos de tinta</sp-action-button>
         <sp-action-button size="s" quiet id="toggleRecipes">Recetas y perfiles</sp-action-button>
@@ -498,8 +499,21 @@
           <h2>Resultado preparado</h2>
           <p id="resultInfo"></p>
           <sp-button size="m" variant="accent" treatment="fill" class="primary" id="export">Exportar PNG · 300 ppp</sp-button>
+          <sp-action-button size="s" quiet id="exportWhite">Exportar canal blanco (PNG)</sp-action-button>
+          <div class="row">
+            <label>Contracción · mm<input id="whiteChokeMM" type="number" min="0" max="5" step="0.05" value="0.15">
+            </label>
+            <label>Archivo<select id="whiteFormat">
+                <option value="blackOnWhite" selected>Negro = tinta</option>
+                <option value="alpha">Blanco sobre transparente</option>
+                <option value="whiteOnBlack">Blanco = tinta</option>
+              </select>
+            </label>
+          </div>
+          <p class="hint" id="whiteInfo">El blanco sigue la forma del color, contraído para que no asome por el borde; nunca borra el blanco bajo puntos pequeños. Confirma la polaridad que pide tu RIP.</p>
           <sp-action-button size="s" quiet id="newJob">Nueva preparación</sp-action-button>
           <sp-action-button size="s" quiet id="openBatchResult">Procesar lote con estos ajustes</sp-action-button>
+          <sp-action-button size="s" quiet id="openSheetResult">Armar pliego con varios diseños</sp-action-button>
         </section>
         <sp-action-button size="s" quiet id="reopenLastProject">Reabrir último proyecto guardado</sp-action-button>
       </div>
@@ -712,6 +726,47 @@
         <sp-action-button size="s" quiet id="batchBack">Volver</sp-action-button>
         <p id="batchProgress" role="status">Elige archivos, destino y tallas.</p>
         <p class="hint">Puedes detenerlo entre bloques. Los PNG completados se conservan. reporte.csv y ajustes-y-resultados.json registran resultados, errores y cancelaciones.</p>
+      </div>
+      <div class="hidden" id="sheetStage">
+        <div class="stage-content" id="sheetContent">
+        <section>
+          <h2>Pliego de impresión</h2>
+          <sp-action-button size="s" quiet id="sheetFiles">Elegir diseños PNG · 300 ppp</sp-action-button>
+          <p class="hint" id="sheetFilesInfo">Usa los PNG que ya exportaste. Cada diseño se coloca tal cual, sin remuestrear.</p>
+          <div id="sheetItems"></div>
+          <sp-action-button size="s" quiet id="sheetClear">Quitar todos</sp-action-button>
+          <div class="row">
+            <label>Ancho del rollo<select id="sheetRoll">
+                <option value="30">30 cm</option>
+                <option value="33">33 cm</option>
+                <option value="42">42 cm</option>
+                <option value="58" selected>58 cm</option>
+                <option value="60">60 cm</option>
+                <option value="custom">Otro…</option>
+              </select>
+            </label>
+            <label class="hidden" id="sheetCustomRow">Ancho · cm<input id="sheetWidthCM" type="number" min="10" max="200" step="0.1" value="58">
+            </label>
+          </div>
+          <label>Largo máximo · cm (0 = sin límite)<input id="sheetMaxLengthCM" type="number" min="0" max="2000" step="1" value="0">
+          </label>
+          <div class="row">
+            <label>Separación · mm<input id="sheetSpacingMM" type="number" min="0" max="50" step="0.5" value="5">
+            </label>
+            <label>Margen · mm<input id="sheetMarginMM" type="number" min="0" max="50" step="0.5" value="5">
+            </label>
+          </div>
+          <sp-checkbox size="s" class="check" checked="" id="sheetRotate">Permitir girar 90° para ahorrar film</sp-checkbox>
+          <sp-checkbox size="s" class="check" id="sheetMarks">Marcas de corte en las esquinas (separación ≥ 6 mm)</sp-checkbox>
+          <sp-checkbox size="s" class="check" id="sheetWhite">Guardar también el canal blanco del pliego</sp-checkbox>
+          <sp-checkbox size="s" class="check" id="sheetKeepOpen">Dejar los pliegos abiertos en Photoshop</sp-checkbox>
+          <p class="hint" id="sheetInfo">Elige uno o más diseños.</p>
+        </section>
+        </div>
+        <div class="stage-actions">
+        <sp-button size="m" variant="accent" treatment="fill" class="primary" id="sheetBuild">Crear pliego y guardar PNG</sp-button>
+        <sp-action-button size="s" quiet id="sheetBack">Volver</sp-action-button>
+        </div>
       </div>
       <sp-action-button size="s" quiet class="hidden" id="cancelPreparation">Detener preparación</sp-action-button>
       <p id="status" role="status">Abre tu diseño en Photoshop para empezar.</p>

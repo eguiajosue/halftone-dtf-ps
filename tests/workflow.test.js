@@ -205,3 +205,39 @@ test('presets apply a complete look, keep size, calibration and costs, and ink e
  e.inkWhitePriceL.value='0';e.inkColorPriceL.value='0';await e.inkColorPriceL.emit('input');assert.doesNotMatch(e.inkEstimate.textContent,/costo/);
  await e.apply.emit('click');assert.match(e.resultInfo.textContent,/Tinta por pieza/);
 });
+
+function sheetHost(host,calls){
+ host.measureFiles=async files=>files.map((f,i)=>i===1?{name:f.name,width:500,height:500,dpi:150}:{name:f.name,width:1772,height:2362,dpi:300});
+ host.buildSheet=async(sheet,files,o)=>{calls.push(['buildSheet',sheet.index,files.length,o.marks]);o.onProgress('place',1);return {documentID:50+sheet.index,width:sheet.width,height:sheet.height};};
+ host.exportPNG=async(id,file,check,approved)=>calls.push(['exportPNG',id,file.name,approved.width]);
+ host.exportWhite=async(id,file,opts)=>{calls.push(['white',id,file.name,opts.chokeMM,opts.format]);return {chokePX:2,whitePixels:50,colorPixels:100};};
+ host.closeDocument=async id=>calls.push(['closeDoc',id]);
+}
+test('gang sheet screen: measures files, plans with live feedback, saves color and white PNGs and closes the documents',async()=>{
+ const {elements:e,calls,host}=fixture();sheetHost(host,calls);
+ await e.openSheet.emit('click');assert.equal(e.sheetStage.className,'');assert.equal(e.stageBadge.textContent,'Pliegos');assert.match(e.sheetInfo.textContent,/Elige/);assert.equal(e.sheetBuild.disabled,true);
+ await e.sheetFiles.emit('click');
+ assert.match(e.status.textContent,/1 diseño añadido\. Omitidos: b\.png: 150 ppp/);assert.equal(e.sheetItems.children.length,1);
+ const copies=e.sheetItems.children[0].children[1];copies.value='4';await copies.emit('input');
+ assert.match(e.sheetInfo.textContent,/^4 piezas en 1 pliego: 58 × [\d.]+ cm · aprovechamiento \d+ % · film [\d.]+ m²\.$/);assert.equal(e.sheetBuild.disabled,false);
+ e.sheetMarks.checked=true;await e.sheetMarks.emit('change');e.sheetSpacingMM.value='3';await e.sheetSpacingMM.emit('input');
+ assert.match(e.sheetInfo.textContent,/separación/);assert.equal(e.sheetBuild.disabled,true);
+ e.sheetSpacingMM.value='6';await e.sheetSpacingMM.emit('input');e.sheetWhite.checked=true;await e.sheetWhite.emit('change');
+ e.whiteChokeMM.value='0.3';e.whiteFormat.value='alpha';
+ calls.length=0;await e.sheetBuild.emit('click');
+ const names=calls.map(c=>c[0]);assert.deepEqual(names,['buildSheet','exportPNG','white','closeDoc']);
+ assert.equal(calls[0][2],1);assert.equal(calls[0][3],true);assert.match(calls[1][2],/^pliego-01_58x[\d.]+cm_300ppp\.png$/);assert.equal(calls[1][3],6850);
+ assert.match(calls[2][2],/_blanco\.png$/);assert.equal(calls[2][3],.3);assert.equal(calls[2][4],'alpha');assert.equal(calls[3][1],50);
+ assert.match(e.status.textContent,/^Listo\./);
+ e.sheetKeepOpen.checked=true;await e.sheetKeepOpen.emit('change');calls.length=0;await e.sheetBuild.emit('click');assert.ok(!calls.some(c=>c[0]==='closeDoc'),'kept open on request');
+ await e.sheetClear.emit('click');assert.equal(e.sheetBuild.disabled,true);await e.sheetBack.emit('click');assert.equal(e.prepareStage.className,'');
+});
+test('result screen exports the white channel with the chosen contraction and file format',async()=>{
+ const {elements:e,calls,host}=fixture();sheetHost(host,calls);
+ await e.next.emit('click');assert.equal(e.exportWhite.disabled,true);await e.apply.emit('click');assert.equal(e.exportWhite.disabled,false);
+ e.whiteChokeMM.value='0.3';e.whiteFormat.value='alpha';calls.length=0;await e.exportWhite.emit('click');
+ const w=calls.find(c=>c[0]==='white');assert.equal(w[3],.3);assert.equal(w[4],'alpha');assert.equal(w[1],20);
+ assert.match(e.status.textContent,/contracción 2 px · el blanco cubre 50\.0 %/);
+ const recipes=require('../plugin/recipes'),r=recipes.entry({name:'RIP',options:{whiteChokeMM:.2,whiteFormat:'whiteOnBlack'}});assert.equal(r.options.whiteFormat,'whiteOnBlack');
+ assert.throws(()=>recipes.entry({name:'x',options:{whiteFormat:'rojo'}}),/Opción inválida/);
+});

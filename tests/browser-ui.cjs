@@ -81,6 +81,10 @@ async function browserExecutable(){
  await page.setViewportSize({width:340,height:840});await page.waitForFunction(()=>document.getElementById('liveState').textContent==='Vista y lienzo sincronizados');await page.evaluate(()=>{document.querySelector('main').scrollTop=0;document.getElementById('editContent').scrollTop=0;});
  await page.screenshot({path:path.join(screenshots,'UI-AJUSTAR-0.6.4.png')});
  await page.locator('#apply').click();await page.waitForSelector('#resultStage:not(.hidden)');assert.equal(await page.locator('#export').evaluate(el=>el.disabled),false);
+ await page.screenshot({path:path.join(screenshots,'UI-EXPORTAR.png')});
+ await page.locator('#openSheetResult').click();await page.waitForSelector('#sheetStage:not(.hidden)');
+ for(const width of [300,340]){await page.setViewportSize({width,height:840});const overflow=await page.evaluate(()=>({client:document.querySelector('main').clientWidth,scroll:document.querySelector('main').scrollWidth}));assert(overflow.scroll<=overflow.client,JSON.stringify({sheet:width,overflow}));}
+ await page.setViewportSize({width:340,height:840});await page.screenshot({path:path.join(screenshots,'UI-PLIEGO.png')});
  assert.deepEqual(errors,[]);console.log(JSON.stringify({registered:await page.evaluate(()=>['sp-theme','sp-button','sp-action-button','sp-checkbox','sp-textfield'].every(tag=>!!customElements.get(tag))),pageErrors:errors,widths:[300,340],checks:10}));
  await browser.close();
 })().catch(e=>{console.error(e);process.exit(1)});

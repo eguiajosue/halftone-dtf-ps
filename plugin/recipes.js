@@ -1,9 +1,9 @@
 'use strict';
 const {validate,hexRGB}=require('./engine');
 const NUMBERS=['lpi','angle','tolerance','softness','inputBlack','inputMidtone','inputWhite','outputBlack','outputWhite','minDiameterMM',
- 'alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','widthCM','heightCM','focusX','focusY','comparePosition','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','fillHolesMM','solidAbove','inkColorMLm2','inkWhiteMLm2','inkColorPriceL','inkWhitePriceL','filmPriceM2'];
+ 'alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','widthCM','heightCM','focusX','focusY','comparePosition','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','fillHolesMM','solidAbove','inkColorMLm2','inkWhiteMLm2','inkColorPriceL','inkWhitePriceL','filmPriceM2','whiteChokeMM'];
 const BOOLS=['knockout','recover','halftone','defringe','linkBackground','trimArt','convertCopy'];
-const STRINGS=['key','shape','cleanup','memoryMode','protection','viewMode','previewColor','sizeAxis','placement','shirtSize','garment','units','previewScope','gainPoints'];
+const STRINGS=['key','shape','cleanup','memoryMode','protection','viewMode','previewColor','sizeAxis','placement','shirtSize','garment','units','previewScope','gainPoints','whiteFormat'];
 const text=(v,max=120)=>String(v||'').trim().slice(0,max);
 function options(raw={}){
   if(!raw||typeof raw!=='object'||Array.isArray(raw))throw Error('Receta inválida.');
@@ -11,7 +11,7 @@ function options(raw={}){
   for(const k of BOOLS)if(raw[k]!=null){if(typeof raw[k]!=='boolean')throw Error('Valor booleano inválido: '+k);out[k]=raw[k];}
   for(const k of STRINGS)if(raw[k]!=null){if(typeof raw[k]!=='string'||raw[k].length>80)throw Error('Texto inválido: '+k);out[k]=raw[k];}
   validate(out);
-  const enums={memoryMode:['auto','disk'],protection:['off','edges','selection'],units:['cm','in'],garment:['adult','child'],sizeAxis:['width','height'],placement:['front','back','chest','sleeve','neck'],previewScope:['detail','overview','mockup'],viewMode:['original','garment','beforeGarment','compare','transparent','mask','removed','protection']};
+  const enums={memoryMode:['auto','disk'],protection:['off','edges','selection'],units:['cm','in'],garment:['adult','child'],sizeAxis:['width','height'],placement:['front','back','chest','sleeve','neck'],previewScope:['detail','overview','mockup'],whiteFormat:require('./white').FORMATS,viewMode:['original','garment','beforeGarment','compare','transparent','mask','removed','protection']};
   for(const [key,values]of Object.entries(enums))if(out[key]!=null&&!values.includes(out[key]))throw Error('Opción inválida: '+key);
   if(out.previewColor)hexRGB(out.previewColor);
   for(const k of ['widthCM','heightCM'])if(out[k]!=null&&(out[k]<=0||out[k]>1000))throw Error('Medida de receta inválida.');
