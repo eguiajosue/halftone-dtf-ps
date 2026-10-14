@@ -131,12 +131,28 @@ function refreshSource(){
   try{const info=host.info();if(sourceChanged(info))adoptSource();}
   catch(e){sourceInfo=null;$('currentSizeInfo').textContent='Sin origen: '+(e.message||e);controls();}
 }
-function adoptSource(){
-  const next=host.info();sourceInfo=next;showError('');
+// The reference size is the original image at 300 ppp (the same figure the
+// panel shows as "Tamaño actual"); width and height stay locked to its aspect.
+// An original larger than the 100 cm limit starts scaled down to fit it.
+function originalSizeCM(info){
+  const w=info.width/300*2.54,h=info.height/300*2.54,fit=Math.min(1,100/Math.max(w,h));
+  return {widthCM:w*fit,heightCM:h*fit};
+}
+function resetSize(){
+  const original=originalSizeCM(sourceInfo);canonicalSize=null;
+  $('widthCM').value=fromCM(original.widthCM).toFixed(2);syncSize('width',original.widthCM);
+  if($('sizeMode').value==='preset')applySizePreset();
+}
+// Starting a different document (or the first read) always starts at its
+// original size; re-reading the same document keeps the size being edited.
+function adoptSource(options={}){
+  const next=host.info(),basisChanged=!sourceInfo||next.documentID!==sourceInfo.documentID||next.width!==sourceInfo.width||next.height!==sourceInfo.height;
+  sourceInfo=next;showError('');
   $('sourceInfo').textContent=`${next.name} · ${next.width} × ${next.height} px · ${next.dpi} ppp de origen`;
   $('currentSizeInfo').textContent=`Tamaño actual a 300 ppp: ${fromCM(next.width/300*2.54).toFixed(2)} × ${fromCM(next.height/300*2.54).toFixed(2)} ${$('units').value}`;
-  if(!Number.isFinite(Number($('widthCM').value))||Number($('widthCM').value)<=0)$('widthCM').value=fromCM(next.widthCM).toFixed(2);
-  syncSize('width',canonicalSize?canonicalSize.widthCM:toCM(Number($('widthCM').value)));controls();save();status('Define el tamaño final y el color a eliminar.');
+  if(options.reset||basisChanged)resetSize();
+  else{const axis=$('sizeAxis').value==='height'?'height':'width';syncSize(axis,canonicalSize?canonicalSize[axis+'CM']:toCM(Number($(axis+'CM').value)));}
+  controls();save();status(options.reset?'Tamaño original restablecido.':'Define el tamaño final y el color a eliminar.');
 }
 function inkText(stats,size){
   try{if(!stats||!size||!Number.isFinite(stats.coveragePercent)||!Number.isFinite(size.widthCM))return '';return ink.describe(ink.estimate(stats,size,settings()));}catch(_){return '';}
@@ -271,9 +287,10 @@ function init(){
   load();showStage('prepare');
   $('useCurrent').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){status(e.message);showError(e.message);}});
   $('detectDoc').addEventListener('click',()=>{if(busy)return;try{adoptSource();}catch(e){sourceInfo=null;$('currentSizeInfo').textContent='Sin origen: '+e.message;status(e.message);showError(e.message);controls();}});
-  for(const axis of ['width','height'])$(axis+'CM').addEventListener('input',()=>{
-    if(busy)return;try{ensureSource();syncSize(axis,toCM(Number($(axis+'CM').value)));save();}catch(e){$('pixelInfo').textContent='Corrige la medida antes de continuar.';status(e.message);showError(e.message);}
+  for(const axis of ['width','height'])for(const eventName of ['input','change'])$(axis+'CM').addEventListener(eventName,()=>{
+    if(busy)return;try{const typed=toCM(Number($(axis+'CM').value));ensureSource();syncSize(axis,typed);save();}catch(e){$('pixelInfo').textContent='Corrige la medida antes de continuar.';status(e.message);showError(e.message);}
   });
+  $('resetSize').addEventListener('click',()=>{if(busy)return;try{adoptSource({reset:true});}catch(e){sourceInfo=null;$('currentSizeInfo').textContent='Sin origen: '+e.message;status(e.message);showError(e.message);controls();}});
   $('applyPreset').addEventListener('click',()=>{
     if(busy)return;try{
       ensureSource();

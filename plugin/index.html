@@ -171,7 +171,10 @@
         <section class="prepare-card">
           <div class="section-heading"><span class="section-index">01</span><h2>Tamaño de impresión</h2></div>
           <p class="hint" id="currentSizeInfo">Abre un documento para empezar.</p>
-          <sp-action-button size="s" quiet id="detectDoc">Usar documento actual</sp-action-button>
+          <div class="row">
+            <sp-action-button size="s" quiet id="detectDoc">Actualizar documento</sp-action-button>
+            <sp-action-button size="s" quiet id="resetSize">Tamaño original</sp-action-button>
+          </div>
           <label>Medida<select id="sizeMode">
               <option value="custom">A medida</option>
               <option value="preset">Por talla y posición</option>

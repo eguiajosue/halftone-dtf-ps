@@ -1,5 +1,9 @@
 # Historial
 
+## 0.7.2 RC — 2026-10-14
+
+**Medidas ancladas al tamaño de la imagen original.** El tamaño inicial ya no es el que quedó guardado de una sesión anterior: al detectar un documento (o uno distinto) el ancho y el alto arrancan en el tamaño de la imagen a 300 ppp, el mismo que muestra «Tamaño actual a 300 ppp» (un original de más de 100 cm arranca reducido a ese límite). Ancho y alto van ligados a su proporción en ambos sentidos, en cm y en pulgadas, y también al confirmar el campo (`change`). Releer el mismo documento, o elegir otra capa, conserva el tamaño que estés editando y su eje de referencia; un documento distinto vuelve a su tamaño original. Botones visibles en Preparar: **Actualizar documento** y **Tamaño original**. 184 pruebas.
+
 ## 0.7.1 RC — 2026-10-14
 
 Correcciones tras la primera prueba en Photoshop (medidas, cuentagotas y «Crear vista de semitonos» no respondían):

@@ -294,3 +294,32 @@ test('eyedropper: invalid HEX still opens the picker, and the picker is requeste
  try{await e.foreground.emit('click');}finally{color.pickColor=original;}
  assert.equal(asked,'#000000','invalid HEX falls back instead of blocking');assert.equal(e.key.value,'#abcdef');
 });
+
+test('size starts at the original image (300 ppp) and width/height stay locked to its proportion',async()=>{
+ const {elements:e,calls,host}=fixture();let doc={documentID:7,layerID:11,name:'Foto',width:1500,height:1000,dpi:72,widthCM:52.92};
+ host.info=()=>doc;
+ e.widthCM.value='99';e.heightCM.value='99';                       // stale values from an earlier session
+ await e.detectDoc.emit('click');
+ assert.equal(e.widthCM.value,'12.70');assert.equal(e.heightCM.value,'8.47','original = pixels / 300 ppp, not the 72 ppi physical size');
+ assert.match(e.currentSizeInfo.textContent,/12\.70 × 8\.47 cm/);
+ e.widthCM.value='20';await e.widthCM.emit('input');assert.equal(e.heightCM.value,'13.33');
+ e.heightCM.value='30';await e.heightCM.emit('change');assert.equal(e.widthCM.value,'45.00','editing the other value moves the first one in proportion');
+ await e.next.emit('click');const o=calls.find(c=>c[0]==='begin')[2];assert.ok(Math.abs(o.widthCM/o.heightCM-1.5)<1e-9);assert.equal(o.sizeAxis,'height');assert.equal(o.heightCM,30);
+ await e.cancel.emit('click');
+ // the same document read again, or another layer selected, keeps the size being edited
+ await e.detectDoc.emit('click');assert.equal(Number(e.heightCM.value),30);assert.equal(e.widthCM.value,'45.00');
+ doc={...doc,layerID:12};await e.detectDoc.emit('click');assert.equal(Number(e.heightCM.value),30);assert.equal(e.widthCM.value,'45.00');
+ // a different document starts from its own original size
+ doc={documentID:8,layerID:21,name:'Otra',width:600,height:900,dpi:300,widthCM:5.08};await e.detectDoc.emit('click');
+ assert.equal(e.widthCM.value,'5.08');assert.equal(e.heightCM.value,'7.62');
+ // and the original size can be restored explicitly
+ e.widthCM.value='10';await e.widthCM.emit('input');assert.equal(e.heightCM.value,'15.00');
+ await e.resetSize.emit('click');assert.equal(e.widthCM.value,'5.08');assert.equal(e.heightCM.value,'7.62');assert.match(e.status.textContent,/Tamaño original restablecido/);
+});
+test('inches stay anchored too, and an original larger than 100 cm starts scaled to fit',async()=>{
+ const {elements:e,host}=fixture();let doc={documentID:7,layerID:11,name:'Foto',width:900,height:600,dpi:300,widthCM:7.62};host.info=()=>doc;
+ await e.detectDoc.emit('click');e.units.value='in';await e.units.emit('change');
+ e.widthCM.value='6';await e.widthCM.emit('input');assert.equal(e.heightCM.value,'4.00');
+ doc={documentID:9,layerID:1,name:'Enorme',width:15000,height:6000,dpi:300,widthCM:127};e.units.value='cm';await e.units.emit('change');await e.detectDoc.emit('click');
+ assert.equal(e.widthCM.value,'100.00');assert.equal(e.heightCM.value,'40.00');assert.equal(e.errorBanner.textContent,'');
+});
