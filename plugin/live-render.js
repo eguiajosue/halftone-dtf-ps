@@ -10,15 +10,17 @@
  * from processRGBA; protection modes keep using processRGBA. */
 const {LEVELS,validate,adjustLevels,tone,threshold,coverage,cleanedEdge,boostedColor}=require('./engine');
 const {fillHoles,minAreaFor}=require('./holes');
+const morph=require('./morph'),smooth=require('./smooth');
 const SOLID=65536;
 const clamp=(x,lo=0,hi=1)=>Math.max(lo,Math.min(hi,x));
-function coverageKey(n){return JSON.stringify([n.knockout,n.knockout?[n.key,n.tolerance,n.softness,n.recover]:0,n.gamma,n.strength]);}
-function screenKey(n){return n.halftone?JSON.stringify([n.dpi,n.lpi,n.angle,n.shape]):'none';}
+// `smoothed` adds the pre-smoothing to the key: RGB recovery and edge cleanup read the raw coverage.
+function coverageKey(n,smoothed=true){return JSON.stringify([n.knockout,n.knockout?[n.key,n.tolerance,n.softness,n.recover]:0,n.gamma,n.strength,smoothed?n.presmooth:0]);}
+function screenKey(n){return n.halftone?JSON.stringify([n.dpi,n.lpi,n.angle,n.shape,n.shape==='line'?n.lineTrim:0]):'none';}
 function colorKey(n){
   const recovering=n.recover&&n.knockout;
   if(!recovering&&!n.defringe&&!n.shadowBoost&&!n.colorBoost)return 'plain';
   // Only the edge cleanup reads leveled coverage; recovery and boosts do not.
-  return JSON.stringify([recovering?coverageKey(n):0,n.defringe?[coverageKey(n),n.cleanup,n.inputBlack,n.inputMidtone,n.inputWhite,n.outputBlack,n.outputWhite,n.defringeRadius,n.defringeStrength]:0,
+  return JSON.stringify([recovering?coverageKey(n,false):0,n.defringe?[coverageKey(n,false),n.cleanup,n.inputBlack,n.inputMidtone,n.inputWhite,n.outputBlack,n.outputWhite,n.defringeRadius,n.defringeStrength]:0,
     n.shadowBoost,n.colorBoost]);
 }
 // Same decisions as processRGBA: alpha floor, solid coverage, threshold mode.
@@ -51,7 +53,7 @@ class LiveRenderer{
         if(!a){cov[p]=0;continue;}
         if(!n.knockout){cov[p]=byAlpha[a];continue;}
         const r=source[i],g=source[i+1],b=source[i+2];
-        const t=clamp((Math.hypot(r-kr,g-kg,b-kb)*scale-low)/range);
+        const dr=r-kr,dg=g-kg,db=b-kb,t=clamp((Math.sqrt(dr*dr+dg*dg+db*db)*scale-low)/range);
         let opacity=a/255*(t*t*(3-2*t));
         if(n.recover){
           let matte=0;const rgb=[r,g,b];
@@ -65,18 +67,22 @@ class LiveRenderer{
     }
     // Art that a screenless job would print solid: raw coverage of at least 50 %.
     let solid=0;for(let p=0;p<cov.length;p++)if(cov[p]>=32768)solid++;
+    if(n.presmooth){
+      if(hook)await hook('screen',.5);
+      smooth.smoothCoverage(cov,width,height,{mode:n.presmooth,alpha:{data:source,stride:4,offset:3}});
+    }
     this.solidCount=solid;this.cov=cov;this.covKey=key;return cov;
   }
   async thresholds(n,hook){
     const key=screenKey(n);if(key==='none')return null;if(key===this.thrKey)return this.thr;
     const {width,height}=this,thr=this.thr||new Uint16Array(width*height);
-    const radians=n.angle*Math.PI/180,cos=Math.cos(radians),sin=Math.sin(radians),cell=n.dpi/n.lpi;
+    const radians=n.angle*Math.PI/180,cos=Math.cos(radians),sin=Math.sin(radians),cell=n.dpi/n.lpi,trim=n.lineTrim/100;
     for(let y=0;y<height;y++){
       if(hook&&y%128===0)await hook('screen',.5+y/height*.5);
       const gy=y+.5;
       for(let x=0,p=y*width;x<width;x++,p++){
         const gx=x+.5;
-        thr[p]=Math.round(threshold((gx*cos+gy*sin)/cell,(-gx*sin+gy*cos)/cell,n.shape)*65535);
+        thr[p]=Math.round(threshold((gx*cos+gy*sin)/cell,(-gx*sin+gy*cos)/cell,n.shape,trim)*65535);
       }
     }
     this.thr=thr;this.thrKey=key;return thr;
@@ -95,8 +101,8 @@ class LiveRenderer{
       else if(thr)for(;p<end;p++){const v=lut[cov[p]];if(v>thr[p]){mask[p]=255;screened++;}else mask[p]=0;}
       else for(;p<end;p++){if(lut[cov[p]]){mask[p]=255;screened++;}else mask[p]=0;}
     }
-    const diameterPX=n.minDiameterMM/25.4*n.dpi,minArea=Math.max(1,Math.ceil(Math.PI*(diameterPX/2)**2));
-    const cleanup=await this.particles(mask,minArea,hook);
+    const opening=n.cleanupMode==='opening',diameterPX=n.minDiameterMM/25.4*n.dpi,minArea=opening?1:Math.max(1,Math.ceil(Math.PI*(diameterPX/2)**2));
+    const cleanup=opening?await morph.openMask(mask,width,height,morph.openingParams(n),null,hook,this.pool||(this.pool={})):await this.particles(mask,minArea,hook);
     const filled=cand?(await fillHoles({data:mask,candidate:cand,width,height,minArea:holeArea,hook})).filledPixels:0;
     const inkPixels=screened-cleanup.removedPixels+filled;
     return {mask,stats:Object.assign({cellPX:n.dpi/n.lpi,minArea,minDiameterMM:n.minDiameterMM,inkPixels,
@@ -155,7 +161,7 @@ class LiveRenderer{
     }
     return out;
   }
-  dispose(){this.source=null;this.cov=null;this.thr=null;this.cand=null;this.visited=null;this.queue=null;}
+  dispose(){this.source=null;this.cov=null;this.thr=null;this.cand=null;this.visited=null;this.queue=null;this.pool=null;}
 }
 // Printable RGBA: color where the mask prints, fully transparent elsewhere.
 function compose(color,mask,width,crop){

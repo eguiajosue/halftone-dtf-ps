@@ -1,5 +1,18 @@
 # Historial
 
+## Sin publicar — técnicas del estudio de DTPrep
+
+Resumen: forma de punto euclidiana, línea con recorte, limpieza por apertura según la lineatura, suavizado previo, aviso de tonos por celda y esperas diferenciadas al ajustar. Todo con matrices y filtros propios (ver `docs/IMPLEMENTACION-DTPREP.md`). Los valores por defecto no cambian la salida: las pruebas de equivalencia con 0.6.2 siguen pasando.
+
+- **Forma «Euclidiana»:** punto redondo que se une al 50 % y cierra en huecos redondos, ecualizado por rango (área impresa lineal en el tono).
+- **Recorte de línea (0–10 %):** sin filamentos de 1 px; el preset «Líneas» usa 3 %.
+- **Limpieza por apertura (`cleanupMode: opening`):** calado según LPI, contraer y expandir de 1 px (2 en Alta); solo quita tinta y respeta la protección de detalles. La limpieza por área sigue siendo la predeterminada.
+- **Suavizado previo (`presmooth` 0/1/2):** gaussiano de 1,4 px y filtro que conserva bordes (aproximación del Desenfoque de superficie r20/t24). Exacto entre bloques de imágenes grandes.
+- **Aviso de tonos por celda** bajo la lineatura y en las advertencias (menos de 50 tonos a partir de ~42 LPI). Campo de ángulo marcado como «+ horario».
+- **Esperas diferenciadas:** 40 ms para niveles, 120 ms para lo que rehace trama, limpieza, color o knockout. Primera pasada ~20 % más rápida y búferes de limpieza reutilizados.
+- Preset de fábrica «Camiseta negra · punto euclidiano». Recetas y proyectos guardan las opciones nuevas.
+- 13 pruebas nuevas (192 en total). No se implementó el árbol de capas nativo de DTPrep: no se puede validar sin Photoshop (motivos en el documento).
+
 ## 0.7.0 RC — 2026-10-14
 
 Resumen: edición en vivo con máscara nativa (como DTPrep), niveles en un solo slider, calibración de ganancia de punto, rellenar huecos y sólido desde, presets de fábrica, estimación de tinta y costo, canal blanco (también en lotes) y pliegos. Detalle:

@@ -4,6 +4,8 @@ Panel en español para preparar arte de color con huecos transparentes para DTF.
 
 **Candidato de versión.** Las pruebas automáticas usan el motor real y un host Photoshop simulado. Photoshop no está disponible en este entorno: instalación, interfaz UXP, archivos nativos y transferencia física siguen pendientes. El CCX local requiere comprobación y empaquetado oficial antes de distribución estable.
 
+**Técnicas del estudio de DTPrep (sin publicar):** punto euclidiano, línea con recorte, limpieza por apertura según la lineatura, suavizado previo y aviso de tonos por celda, con matrices y filtros propios. [Qué se implementó y qué no](docs/IMPLEMENTACION-DTPREP.md).
+
 **0.7.0:** edición en vivo con máscara nativa, slider único de niveles, calibración de ganancia de punto, relleno de huecos, presets de fábrica, estimación de tinta y costo, canal blanco (también en lotes) y pliegos de varios diseños. [Novedades](CHANGELOG.md) · [Auditoría frente a DTPrep](docs/AUDITORIA-DTPREP.md) · [Calibración y calidad](docs/CALIBRACION-Y-CALIDAD-DTF.md). Sin validar todavía en Photoshop real.
 
 **0.6.4:** controles reales de **Adobe Spectrum Web Components**, con wrappers oficiales para UXP. Panel minimalista: preparación numerada, colores con HEX visible, sliders amplios, opciones avanzadas plegables y acciones siempre visibles. Conserva las optimizaciones de rendimiento de 0.6.3. [Diseño, compatibilidad y pruebas](docs/INTERFAZ-SPECTRUM-0.6.4.md).

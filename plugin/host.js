@@ -503,7 +503,7 @@ async function writeNative(session,colorChanged,n,check=()=>{}){
   const {width,height}=session.size;
   await core.executeAsModal(async context=>{
     check();if(context.isCancelled)throw cancelError('Actualización cancelada.');
-    const {doc,layer}=sessionDocument(session);await assertLayerState(session);
+    const found=sessionDocument(session),{doc,layer}=found;await assertLayerState(session,found);
     if(colorChanged){
       let im;
       try{
@@ -778,8 +778,9 @@ async function trimSourceBounds(source,documentID,layerID,progress=()=>{}){
  },{commandName:'Medir arte sin márgenes transparentes'});
 }
 
-async function assertLayerState(session){
- const {doc,layer}=sessionDocument(session);
+// `found` lets a caller that already resolved the document skip a second layer walk.
+async function assertLayerState(session,found=sessionDocument(session)){
+ const {doc,layer}=found;
  if(action&&action.batchPlay){const [d]=await action.batchPlay([{_obj:'get',_target:[{_ref:'layer',_id:layer.id},{_ref:'document',_id:doc.id}]}],{});
  if((d.hasUserMask&&!session.native)||d.hasVectorMask||d.layerEffects)throw Error('La capa de trabajo tiene máscara o efectos añadidos. Vuelve a preparar el original.');}
 }

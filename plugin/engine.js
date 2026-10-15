@@ -2,8 +2,9 @@
  * Raster coordinates use pixel centers, globally anchored to document origin.
  * No interpolation or antialiasing is performed on final alpha. */
 'use strict';
-const gainLib=require('./gain'),{fillHoles,minAreaFor}=require('./holes');
-const SHAPES = ['round', 'ellipse', 'square', 'diamond', 'line'];
+const gainLib=require('./gain'),{fillHoles,minAreaFor}=require('./holes'),morph=require('./morph'),smooth=require('./smooth');
+const SHAPES = ['round', 'euclidean', 'ellipse', 'square', 'diamond', 'line'];
+const CLEANUP_MODES = ['area', 'opening'];
 const LEVELS = {
   none: {alphaFloor: 0, minDiameterMM: 0},
   low: {alphaFloor: 0.01, minDiameterMM: 0.12},
@@ -21,19 +22,21 @@ function validate(o) {
     knockout: true, key: '#000000', tolerance: 2, softness: 35, recover: false,
     strength: 100, gamma: 1, inputBlack: 0, inputMidtone: 1, inputWhite: 255,
     outputBlack: 0, outputWhite: 255, minDiameterMM: null, originX: 0, originY: 0,
-    halftone:true,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringe:false,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1,fillHolesMM:0,solidAbove:100,gainPoints:'',measureSolid:false}, o);
+    halftone:true,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringe:false,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1,fillHolesMM:0,solidAbove:100,gainPoints:'',measureSolid:false,lineTrim:0,cleanupMode:'area',presmooth:0}, o);
   n.protection = n.protection || 'off';
   if (!['off','edges','selection'].includes(n.protection)) throw Error('Protección de detalles inválida.');
   for (const [key, lo, hi] of [['dpi', 36, 2400], ['lpi', 5, 150], ['angle', -180, 180],
     ['tolerance', 0, 99], ['softness', 0.1, 100], ['strength', 1, 100], ['gamma', 0.25, 4],
     ['inputBlack', 0, 254], ['inputMidtone', 0.1, 9.99], ['inputWhite', 1, 255],
     ['outputBlack', 0, 255], ['outputWhite', 0, 255],['alphaThreshold',1,255],['shadowBoost',0,100],['colorBoost',0,100],
-    ['defringeRadius',1,4],['defringeStrength',0,100],['edgeContrast',16,255],['edgeRadius',1,4],['fillHolesMM',0,1],['solidAbove',50,100]]) {
+    ['defringeRadius',1,4],['defringeStrength',0,100],['edgeContrast',16,255],['edgeRadius',1,4],['fillHolesMM',0,1],['solidAbove',50,100],['lineTrim',0,10]]) {
     if (!Number.isFinite(n[key]) || n[key] < lo || n[key] > hi) throw Error(`${key}: usa un valor de ${lo} a ${hi}.`);
   }
   if (n.inputBlack >= n.inputWhite) throw Error('El negro de entrada debe ser menor que el blanco.');
   if (n.outputBlack > n.outputWhite) throw Error('El negro de salida debe ser menor o igual que el blanco.');
   if (!SHAPES.includes(n.shape) || !LEVELS[n.cleanup]) throw Error('Forma o nivel de limpieza inválidos.');
+  if (!CLEANUP_MODES.includes(n.cleanupMode)) throw Error('Método de limpieza inválido.');
+  if (![0, 1, 2].includes(n.presmooth)) throw Error('Suavizado previo: usa 0 (sin), 1 (gaussiano) o 2 (gaussiano y superficie).');
   if (n.halftone && n.dpi / n.lpi < 4) throw Error('Resolución insuficiente: se requieren al menos 4 píxeles por celda. Reduce LPI o aumenta resolución antes de procesar.');
   n.rgb = hexRGB(n.key);
   n.gainCurve = gainLib.parseGain(n.gainPoints);n.gainMap = gainLib.inverse(n.gainCurve);
@@ -107,10 +110,37 @@ function makeEllipseCDF() {
   for (let i = 0; i < bins; i++) {sum += histogram[i]; ellipseCDF[i] = sum / (count * count);}
   return ellipseCDF;
 }
-function threshold(u, v, shape) {
+// Euclidean dot: a round dot that grows until it touches its neighbors at 50 %
+// (checkerboard), then the gaps close as rounded holes. Spot function over the
+// cell [-1, 1]^2, equalized by rank so that the printed area is linear in tone.
+let euclideanCDF;
+function makeEuclideanCDF() {
+  if (euclideanCDF) return euclideanCDF;
+  const bins = 8192, count = 512, histogram = new Uint32Array(bins);
+  for (let y = 0; y < count; y++) for (let x = 0; x < count; x++) {
+    const index = euclideanBin(Math.abs((x + 0.5) / count - 0.5), Math.abs((y + 0.5) / count - 0.5), bins);
+    histogram[index]++;
+  }
+  euclideanCDF = new Float32Array(bins);
+  let sum = 0;
+  for (let i = 0; i < bins; i++) {sum += histogram[i]; euclideanCDF[i] = sum / (count * count);}
+  return euclideanCDF;
+}
+// u, v in [0, 0.5] (distance to the cell center). Key grows from the center
+// (0), through the touching points at the middle of the edges (1), to the
+// corners (2).
+function euclideanBin(u, v, bins) {
+  const x = 2 * u, y = 2 * v;
+  const key = x + y <= 1 ? x * x + y * y : 2 - ((x - 1) ** 2 + (y - 1) ** 2);
+  return Math.min(bins - 1, Math.floor(key / 2 * bins));
+}
+// `trim` (0..0.5) clips the line profile: tones up to `trim` print nothing and
+// tones from 1 - trim print solid, so there are no 1 px filaments.
+function threshold(u, v, shape, trim = 0) {
   u = Math.abs(u - Math.floor(u) - 0.5); v = Math.abs(v - Math.floor(v) - 0.5);
   switch (shape) {
-    case 'line': return 2 * v;
+    case 'euclidean': return makeEuclideanCDF()[euclideanBin(u, v, 8192)];
+    case 'line': return trim ? trim + (1 - 2 * trim) * 2 * v : 2 * v;
     case 'square': return 4 * Math.max(u, v) ** 2;
     case 'diamond': {const s = u + v; return s <= 0.5 ? 2 * s * s : 1 - 2 * (1 - s) ** 2;}
     case 'ellipse': return makeEllipseCDF()[Math.min(8191, Math.floor((u * u + 4 * v * v) / 1.25 * 8192))];
@@ -167,6 +197,26 @@ async function removeParticles(data, w, h, minArea, hook, protectedMask) {
   }
   return {removedPixels, removedComponents};
 }
+// Morphological opening on the printed alpha (see morph.js). Only removes ink.
+async function openingCleanup(output, width, height, n, protectedMask, hook) {
+  const params = morph.openingParams(n);
+  if (!params) return {removedPixels: 0, removedComponents: null};
+  const mask = new Uint8Array(width * height);
+  for (let p = 0; p < mask.length; p++) mask[p] = output[p * 4 + 3];
+  const result = await morph.openMask(mask, width, height, params, protectedMask, hook);
+  for (let p = 0; p < mask.length; p++) if (!mask[p] && output[p * 4 + 3]) output.fill(0, p * 4, p * 4 + 4);
+  return result;
+}
+// Coverage before levels, smoothed (smooth.js). Same quantization as LiveRenderer.
+function smoothedPlane(input, width, height, n) {
+  const plane = new Uint16Array(width * height);
+  for (let p = 0; p < plane.length; p++) {
+    const i = p * 4; if (!input[i + 3]) continue;
+    const raw = coverage(input[i], input[i + 1], input[i + 2], input[i + 3], n).raw;
+    plane[p] = raw > 0 ? Math.max(1, Math.min(65535, Math.round(raw * 65535))) : 0;
+  }
+  return smooth.smoothCoverage(plane, width, height, {mode: n.presmooth, alpha: {data: input, stride: 4, offset: 3}, originX: n.originX, originY: n.originY});
+}
 async function processRGBA(input, width, height, options = {}, hook) {
   if (!(input instanceof Uint8Array) || input.length !== width * height * 4 || !Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) throw Error('Buffer RGBA inválido.');
   const n = validate(options), output = new Uint8Array(input.length),removedMask=new Uint8Array(width*height);
@@ -177,14 +227,17 @@ async function processRGBA(input, width, height, options = {}, hook) {
   const radians = n.angle * Math.PI / 180, cos = Math.cos(radians), sin = Math.sin(radians), cell = n.dpi / n.lpi;
   let inkPixels = 0,solidPixels=0;
   const holeArea=n.halftone?minAreaFor(n.fillHolesMM,n.dpi):1,candidate=holeArea>1?new Uint8Array(width*height):null;
+  const plane=n.presmooth?smoothedPlane(input,width,height,n):null;
   for (let y = 0; y < height; y++) {
     if (hook && y % 32 === 0) await hook('screen', y / height);
     for (let x = 0; x < width; x++) {
       const i = (y * width + x) * 4;
       if (!input[i + 3]) continue;
       const c = coverage(input[i], input[i + 1], input[i + 2], input[i + 3], n);
+      const solidRaw = c.raw;
+      if (plane) {c.raw = plane[y * width + x] / 65535; c.value = tone(adjustLevels(c.raw, n), n);}
       const inRegion=x>=region.left&&x<region.left+region.width&&y>=region.top&&y<region.top+region.height;
-      if(n.measureSolid&&inRegion&&c.raw>=.5)solidPixels++;
+      if(n.measureSolid&&inRegion&&solidRaw>=.5)solidPixels++;
       let protectedPixel=n.protection==='selection' && n.protectMask[y*width+x]>=128 && input[i+3]>=128;
       if(n.protection==='edges' && input[i+3]>=250 && c.value>0) {
         // Only hard source edges, not halftone edges. Exact knockout colors
@@ -205,7 +258,7 @@ async function processRGBA(input, width, height, options = {}, hook) {
         // Solid coverage does not need a screen threshold; preserve exact tones.
         if(c.value<1) {
           const gx=x+n.originX+0.5,gy=y+n.originY+0.5;
-          if(c.value<=threshold((gx*cos+gy*sin)/cell,(-gx*sin+gy*cos)/cell,n.shape))continue;
+          if(c.value<=threshold((gx*cos+gy*sin)/cell,(-gx*sin+gy*cos)/cell,n.shape,n.lineTrim/100))continue;
         }
       } else if(c.value*255<n.alphaThreshold)continue;
       paintInk(input,output,i,width,height,x,y,c,n);removedMask[y*width+x]=1; inkPixels++;
@@ -213,8 +266,9 @@ async function processRGBA(input, width, height, options = {}, hook) {
     }
   }
   const diameterPX = n.minDiameterMM / 25.4 * n.dpi;
-  const minArea = Math.max(1, Math.ceil(Math.PI * (diameterPX / 2) ** 2));
-  const cleanup = await removeParticles(output, width, height, minArea, hook, protectedMask);
+  const minArea = n.cleanupMode === 'opening' ? 1 : Math.max(1, Math.ceil(Math.PI * (diameterPX / 2) ** 2));
+  const cleanup = n.cleanupMode === 'opening' ? await openingCleanup(output, width, height, n, protectedMask, hook)
+    : await removeParticles(output, width, height, minArea, hook, protectedMask);
   let filled=0;
   if(candidate){
     const result=await fillHoles({data:output,stride:4,offset:3,candidate,width,height,minArea:holeArea,hook,onFill:p=>{
@@ -239,4 +293,4 @@ function composite(rgba, width, height, background) {
   }
   return out;
 }
-module.exports = {SHAPES, LEVELS, hexRGB, validate, adjustLevels, tone, threshold, coverage, cleanedEdge, processRGBA, composite, boostedColor};
+module.exports = {SHAPES, CLEANUP_MODES, LEVELS, hexRGB, validate, adjustLevels, tone, threshold, coverage, cleanedEdge, processRGBA, composite, boostedColor};

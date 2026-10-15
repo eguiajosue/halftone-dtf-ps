@@ -67,7 +67,10 @@ function haloFor(options){
   // even across tile corners. Also include the edge detector's one-pixel radius.
   // Pores smaller than `holes` pixels are filled after islands are removed, so
   // their extent plus the context that decides each member is needed.
-  return area-1+(holes>1?holes-1:0)+Math.max(n.protection==='edges'?n.edgeRadius:0,n.defringe?n.defringeRadius:0);
+  // Opening only looks `reach` pixels away (blur + contract + expand). Pre-smoothing
+  // changes the coverage that feeds everything else, so its halo is added on top.
+  const cleanup=n.cleanupMode==='opening'?require('./morph').reach(n):area-1;
+  return cleanup+(holes>1?holes-1:0)+Math.max(n.protection==='edges'?n.edgeRadius:0,n.defringe?n.defringeRadius:0)+require('./smooth').haloFor(n.presmooth);
 }
 async function processTiles(source,target,options,hook,protectStore){
   const n=validate(options),halo=haloFor(n),count=Math.ceil(source.width/TILE_SIZE)*Math.ceil(source.height/TILE_SIZE);
