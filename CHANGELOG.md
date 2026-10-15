@@ -1,5 +1,9 @@
 # Historial
 
+## Sin publicar
+
+Rendimiento del motor en vivo, con salida idéntica bit a bit. Knockout con tabla de distancias y `sqrt` en lugar de `Math.hypot`, recuperación y realce de color sin objetos por píxel, y atajo en la limpieza de partículas. A 13 MP, la cobertura con knockout es 2–3,5× más rápida, el color con recuperación 3–5× y cada movimiento de nivel con limpieza ~30 % más rápido. Análisis de la arquitectura de DTPrep 1.1.4 y medición en `docs/RENDIMIENTO-DTPREP-NATIVO.md`.
+
 ## 0.7.0 RC — 2026-10-14
 
 Resumen: edición en vivo con máscara nativa (como DTPrep), niveles en un solo slider, calibración de ganancia de punto, rellenar huecos y sólido desde, presets de fábrica, estimación de tinta y costo, canal blanco (también en lotes) y pliegos. Detalle:

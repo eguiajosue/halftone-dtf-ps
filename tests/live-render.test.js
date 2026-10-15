@@ -3,7 +3,8 @@ const {test}=require('node:test'),assert=require('node:assert/strict');
 const engine=require('../plugin/engine'),{LiveRenderer,compose,colorKey}=require('../plugin/live-render');
 function source(w,h){const data=new Uint8Array(w*h*4);for(let p=0;p<w*h;p++){const x=p%w,y=Math.floor(p/w);data.set([(x*17+y*3)%256,(x*5+y*11)%256,(x*7+y*19)%256,p%7===0?0:p%5===0?255:(x*13+y*23)%256],p*4);}return data;}
 const cases=[{},{knockout:false},{inputBlack:7,inputMidtone:2,inputWhite:100},{outputBlack:40,outputWhite:200},{recover:true,key:'#202020'},
- {defringe:true},{shadowBoost:30,colorBoost:20},{halftone:false},{cleanup:'high',lpi:20},{cleanup:'none',gamma:1.6,strength:80}];
+ {defringe:true},{shadowBoost:30,colorBoost:20},{halftone:false},{cleanup:'high',lpi:20},{cleanup:'none',gamma:1.6,strength:80},
+ {recover:true,key:'#202020',shadowBoost:25,colorBoost:15},{recover:true,key:'#303030',defringe:true}];
 test('cached live renderer matches processRGBA except for rare 16-bit edge rounding',async()=>{
  const w=160,h=120,data=source(w,h),renderer=new LiveRenderer(data,w,h);
  for(const shape of engine.SHAPES)for(const c of cases){

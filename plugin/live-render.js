@@ -8,7 +8,7 @@
  * The mask is lut[coverage] > threshold: no trigonometry per slider move.
  * Values are quantized to 1/65535, so a pixel exactly on a dot edge may differ
  * from processRGBA; protection modes keep using processRGBA. */
-const {LEVELS,validate,adjustLevels,tone,threshold,coverage,cleanedEdge,boostedColor}=require('./engine');
+const {LEVELS,validate,adjustLevels,tone,threshold,keyFactor,coverage,cleanedEdge}=require('./engine');
 const {fillHoles,minAreaFor}=require('./holes');
 const SOLID=65536;
 const clamp=(x,lo=0,hi=1)=>Math.max(lo,Math.min(hi,x));
@@ -20,6 +20,26 @@ function colorKey(n){
   // Only the edge cleanup reads leveled coverage; recovery and boosts do not.
   return JSON.stringify([recovering?coverageKey(n):0,n.defringe?[coverageKey(n),n.cleanup,n.inputBlack,n.inputMidtone,n.inputWhite,n.outputBlack,n.outputWhite,n.defringeRadius,n.defringeStrength]:0,
     n.shadowBoost,n.colorBoost]);
+}
+// Knockout factor for every integer squared distance (0..3*255^2): replaces a
+// square root and a smoothstep per pixel with one lookup, same values.
+function keyTable(n){
+  const t=new Float64Array(3*255*255+1);
+  for(let d2=0;d2<t.length;d2++)t[d2]=keyFactor(d2,n);
+  return t;
+}
+// Same matte as engine.coverage (knockout recovery), without allocating.
+function matteOf(r,g,b,kr,kg,kb){
+  let d=r-kr,m=Math.max(0,d>=0?d/(255-kr||1):-d/(kr||1));
+  d=g-kg;m=Math.max(m,d>=0?d/(255-kg||1):-d/(kg||1));
+  d=b-kb;m=Math.max(m,d>=0?d/(255-kb||1):-d/(kb||1));
+  return clamp(m);
+}
+// engine.boostedColor in place, same operation order.
+function boostInto(out,i,n){
+  const r=out[i],g=out[i+1],b=out[i+2],l=(.2126*r+.7152*g+.0722*b)/255,lift=n.shadowBoost/100*(1-l)**2;
+  const lr=r+(255-r)*lift,lg=g+(255-g)*lift,lb=b+(255-b)*lift,mean=(lr+lg+lb)/3,k=1+n.colorBoost/100;
+  out[i]=Math.round(clamp(mean+(lr-mean)*k,0,255));out[i+1]=Math.round(clamp(mean+(lg-mean)*k,0,255));out[i+2]=Math.round(clamp(mean+(lb-mean)*k,0,255));
 }
 // Same decisions as processRGBA: alpha floor, solid coverage, threshold mode.
 function levelsTable(n){
@@ -43,23 +63,18 @@ class LiveRenderer{
     const {source,width,height}=this,cov=this.cov||new Uint16Array(width*height);
     const byAlpha=new Uint16Array(256);
     for(let a=1;a<256;a++)byAlpha[a]=Math.max(1,Math.round(Math.pow(a/255,1/n.gamma)*n.strength/100*65535));
-    const scale=1/(255*Math.sqrt(3)),[kr,kg,kb]=n.rgb,low=n.tolerance/100,range=n.softness/100;
+    const [kr,kg,kb]=n.rgb,keyed=n.knockout?keyTable(n):null,recover=n.recover,invGamma=1/n.gamma,strength=n.strength;
     for(let y=0;y<height;y++){
       if(hook&&y%256===0)await hook('screen',y/height*.5);
       for(let p=y*width,end=p+width;p<end;p++){
         const i=p*4,a=source[i+3];
         if(!a){cov[p]=0;continue;}
-        if(!n.knockout){cov[p]=byAlpha[a];continue;}
-        const r=source[i],g=source[i+1],b=source[i+2];
-        const t=clamp((Math.hypot(r-kr,g-kg,b-kb)*scale-low)/range);
-        let opacity=a/255*(t*t*(3-2*t));
-        if(n.recover){
-          let matte=0;const rgb=[r,g,b];
-          for(let k=0;k<3;k++){const d=rgb[k]-n.rgb[k];matte=Math.max(matte,d>=0?d/(255-n.rgb[k]||1):-d/(n.rgb[k]||1));}
-          opacity*=clamp(matte);
-        }
+        if(!keyed){cov[p]=byAlpha[a];continue;}
+        const r=source[i],g=source[i+1],b=source[i+2],dr=r-kr,dg=g-kg,db=b-kb;
+        let opacity=a/255*keyed[dr*dr+dg*dg+db*db];
+        if(recover&&opacity>0)opacity*=matteOf(r,g,b,kr,kg,kb);
         if(opacity<=0){cov[p]=0;continue;}
-        const base=Math.pow(opacity,1/n.gamma)*n.strength/100;
+        const base=(invGamma===1?opacity:Math.pow(opacity,invGamma))*strength/100;
         cov[p]=base>0?Math.max(1,Math.min(65535,Math.round(base*65535))):0;
       }
     }
@@ -116,6 +131,10 @@ class LiveRenderer{
     for(let start=0;start<count;start++){
       if(hook&&start%(w*256)===0)await hook('cleanup',start/count);
       if(state[start]||!mask[start])continue;
+      // Fast path: touching a kept pixel already scanned (left or the row
+      // above) means the same large component, so no search is needed.
+      const sx=start%w;
+      if((sx>0&&state[start-1]===KEPT)||(start>=w&&(state[start-w]===KEPT||(sx>0&&state[start-w-1]===KEPT)||(sx<w-1&&state[start-w+1]===KEPT)))){state[start]=KEPT;continue;}
       state[start]=1;queue[0]=start;let tail=1,big=false;
       for(let head=0;head<tail&&!big;head++){
         const p=queue[head],x=p%w,y=(p-x)/w;
@@ -138,19 +157,28 @@ class LiveRenderer{
   // decides what prints; this layer only changes with color options.
   async color(options,hook,target){
     const n=options.rgb?options:validate(options),{source,width,height}=this,out=target||new Uint8Array(width*height*4);
-    const plain=colorKey(n)==='plain';
+    const plain=colorKey(n)==='plain',recover=n.recover&&n.knockout,boost=n.shadowBoost||n.colorBoost,[kr,kg,kb]=n.rgb;
     for(let y=0;y<height;y++){
       if(hook&&y%(plain?512:64)===0)await hook('color',y/height);
-      for(let x=0;x<width;x++){
-        const i=(y*width+x)*4;
+      for(let x=0,i=y*width*4;x<width;x++,i+=4){
         if(!source[i+3]){out[i]=out[i+1]=out[i+2]=out[i+3]=0;continue;}
         out[i+3]=255;
         if(plain){out[i]=source[i];out[i+1]=source[i+1];out[i+2]=source[i+2];continue;}
-        const c=coverage(source[i],source[i+1],source[i+2],source[i+3],n);
-        const edge=n.defringe?cleanedEdge(source,width,height,x,y,c,n):null;
-        for(let k=0;k<3;k++)out[i+k]=n.recover&&n.knockout&&c.matte>0
-          ?Math.round(clamp((source[i+k]-(1-c.matte)*n.rgb[k])/c.matte,0,255)):edge?edge[k]:source[i+k];
-        if(n.shadowBoost||n.colorBoost)out.set(boostedColor([out[i],out[i+1],out[i+2]],n),i);
+        if(n.defringe){
+          const c=coverage(source[i],source[i+1],source[i+2],source[i+3],n);
+          const edge=cleanedEdge(source,width,height,x,y,c,n);
+          for(let k=0;k<3;k++)out[i+k]=recover&&c.matte>0
+            ?Math.round(clamp((source[i+k]-(1-c.matte)*n.rgb[k])/c.matte,0,255)):edge[k];
+        }else{
+          // Same arithmetic as engine.coverage + paintInk, without per-pixel objects.
+          let r=source[i],g=source[i+1],b=source[i+2];
+          if(recover){
+            const m=matteOf(r,g,b,kr,kg,kb);
+            if(m>0){r=Math.round(clamp((r-(1-m)*kr)/m,0,255));g=Math.round(clamp((g-(1-m)*kg)/m,0,255));b=Math.round(clamp((b-(1-m)*kb)/m,0,255));}
+          }
+          out[i]=r;out[i+1]=g;out[i+2]=b;
+        }
+        if(boost)boostInto(out,i,n);
       }
     }
     return out;

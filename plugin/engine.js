@@ -117,12 +117,18 @@ function threshold(u, v, shape) {
     default: return circleCDF(Math.sqrt(u * u + v * v));
   }
 }
+// Knockout smoothstep from the squared sRGB distance to the key color. It only
+// depends on the integer d2 (0..195075), so the live renderer tabulates it.
+// sqrt is correctly rounded; Math.hypot is not, and is several times slower.
+function keyFactor(d2, n) {
+  const t = clamp((Math.sqrt(d2) / (255 * Math.sqrt(3)) - n.tolerance / 100) / (n.softness / 100));
+  return t * t * (3 - 2 * t);
+}
 function coverage(r, g, b, a, n) {
   let opacity = a / 255, matte = 1;
   if (n.knockout) {
-    const distance = Math.hypot(r - n.rgb[0], g - n.rgb[1], b - n.rgb[2]) / (255 * Math.sqrt(3));
-    const t = clamp((distance - n.tolerance / 100) / (n.softness / 100));
-    opacity *= t * t * (3 - 2 * t);
+    const dr = r - n.rgb[0], dg = g - n.rgb[1], db = b - n.rgb[2];
+    opacity *= keyFactor(dr * dr + dg * dg + db * db, n);
     if (n.recover) {
       // Minimal gamut-feasible alpha solving C = a*F + (1-a)*garment.
       const rgb = [r, g, b];
@@ -239,4 +245,4 @@ function composite(rgba, width, height, background) {
   }
   return out;
 }
-module.exports = {SHAPES, LEVELS, hexRGB, validate, adjustLevels, tone, threshold, coverage, cleanedEdge, processRGBA, composite, boostedColor};
+module.exports = {SHAPES, LEVELS, hexRGB, validate, adjustLevels, tone, threshold, keyFactor, coverage, cleanedEdge, processRGBA, composite, boostedColor};
