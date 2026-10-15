@@ -224,6 +224,7 @@
           <div class="section-heading"><span class="section-index">02</span><h2>Trama de semitonos</h2></div>
           <label>Forma<select id="shape">
               <option value="round">Redonda</option>
+              <option value="euclidean">Euclidiana (se une al 50 %)</option>
               <option value="ellipse">Elipse 2:1</option>
               <option value="square">Cuadrada</option>
               <option value="diamond">Diamante</option>
@@ -233,7 +234,7 @@
           <div class="row">
             <label>Lineatura (LPI)<input id="lpi" max="75" min="5" type="number" value="30">
             </label>
-            <label>Ángulo (°)<input id="angle" max="180" min="-180" type="number" value="33">
+            <label>Ángulo (°, + horario)<input id="angle" max="180" min="-180" type="number" value="33">
             </label>
           </div>
           <p class="hint" id="lpcInfo">11.8 líneas por cm (LPC)</p>
@@ -281,6 +282,7 @@
         <section id="tramaControls" class="control-card hidden">
           <label>Forma<select id="shapeEdit">
               <option value="round">Redonda</option>
+              <option value="euclidean">Euclidiana (se une al 50 %)</option>
               <option value="ellipse">Elipse 2:1</option>
               <option value="square">Cuadrada</option>
               <option value="diamond">Diamante</option>
@@ -290,9 +292,18 @@
           <div class="row">
             <label>Lineatura (LPI)<input id="lpiEdit" type="number" min="5" max="75" value="30">
             </label>
-            <label>Ángulo (°)<input id="angleEdit" type="number" min="-180" max="180" value="33">
+            <label>Ángulo (°, + horario)<input id="angleEdit" type="number" min="-180" max="180" value="33">
             </label>
           </div>
+          <label>Recorte de línea · %<input id="lineTrim" type="number" min="0" max="10" step="0.5" value="0">
+          </label>
+          <label>Suavizado previo<select id="presmooth">
+              <option value="0">Sin suavizado</option>
+              <option value="1">Gaussiano 1,4 px</option>
+              <option value="2">Gaussiano + superficie</option>
+            </select>
+          </label>
+          <p class="hint">El recorte de línea evita filamentos de 1 px: por debajo de ese tono no imprime y por encima imprime sólido (3 % es un buen valor). El suavizado previo aplana la textura fina antes de la trama sin borrar bordes.</p>
           <sp-checkbox size="s" class="check" id="halftoneEdit" checked="">Activar trama</sp-checkbox>
         </section>
         <section class="control-card" id="levelsControls">
@@ -351,6 +362,11 @@
               <option value="low">Baja</option>
               <option selected="" value="standard">Normal</option>
               <option value="high">Alta</option>
+            </select>
+          </label>
+          <label>Método de limpieza<select id="cleanupMode">
+              <option value="area">Por área · quita islas menores al diámetro mínimo</option>
+              <option value="opening">Apertura · radio según la lineatura</option>
             </select>
           </label>
           <p class="hidden">High puede borrar detalles. La salida usa solo alfa 0 o 255.</p>

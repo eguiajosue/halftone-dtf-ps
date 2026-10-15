@@ -4,7 +4,7 @@
  * and never touch size, garment color, calibration curve or ink costs. */
 const {validate}=require('./engine');
 const BASE={shape:'round',lpi:30,angle:33,cleanup:'standard',minDiameterMM:.2,inputBlack:7,inputMidtone:2,inputWhite:100,outputBlack:0,outputWhite:255,
-  shadowBoost:0,colorBoost:0,knockout:true,key:'#000000',tolerance:2,softness:35,recover:false,defringe:false,halftone:true,fillHolesMM:0,solidAbove:100,protection:'off'};
+  shadowBoost:0,colorBoost:0,knockout:true,key:'#000000',tolerance:2,softness:35,recover:false,defringe:false,halftone:true,fillHolesMM:0,solidAbove:100,protection:'off',lineTrim:0,cleanupMode:'area',presmooth:0};
 const NEUTRAL={inputBlack:0,inputMidtone:1,inputWhite:255};
 const PRESETS=[
  {id:'dark-photo',name:'Camiseta negra · foto',note:'Arte con fondo negro: quita el negro, 30 LPI a 33°, cierra poros de sombras y pasa a sólido sobre 95 %.',
@@ -16,7 +16,9 @@ const PRESETS=[
  {id:'vintage',name:'Vintage desgastado',note:'Trama gruesa de 25 LPI y niveles que levantan el negro: aspecto de estampado gastado.',
   options:{lpi:25,angle:45,cleanup:'low',minDiameterMM:.12,inputBlack:20,inputMidtone:1.4,inputWhite:190}},
  {id:'engraving',name:'Líneas · estilo grabado',note:'Trama de líneas a 45°; funciona mejor con arte de alto contraste.',
-  options:{shape:'line',lpi:30,angle:45,fillHolesMM:.2}},
+  options:{shape:'line',lpi:30,angle:45,fillHolesMM:.2,lineTrim:3}},
+ {id:'dark-euclid',name:'Camiseta negra · punto euclidiano',note:'Punto euclidiano a 30 LPI y 33°, suavizado previo que aplana la textura fina y limpieza por apertura cuyo radio sigue la lineatura.',
+  options:{shape:'euclidean',presmooth:2,cleanupMode:'opening',fillHolesMM:.25,solidAbove:95}},
  {id:'knockout-only',name:'Solo quitar fondo · sin trama',note:'Elimina el color elegido y deja el resto sólido; sin semitonos.',
   options:{halftone:false,cleanup:'none',minDiameterMM:0,...NEUTRAL}}
 ];

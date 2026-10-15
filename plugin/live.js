@@ -7,12 +7,14 @@ class LiveController {
     this.revision=0;this.applied=0;this.pending=null;this.running=false;
     this.closed=false;this.timer=null;this.wake=null;this.waiters=[];this.error=null;this.force=false;
   }
-  request(job) {
+  // `delay` overrides the default wait for this request: cheap edits (levels) can
+  // go out fast, those that redo a whole stage (screen, cleanup, color) wait longer.
+  request(job, delay=this.delay) {
     if(this.closed) throw Error('Sesión de vista cerrada.');
     this.pending={job,revision:++this.revision};this.error=null;
     if(this.wake) this.wake();
     clearTimeout(this.timer);
-    this.timer=setTimeout(()=>{this.timer=null;this.kick();},this.delay);
+    this.timer=setTimeout(()=>{this.timer=null;this.kick();},delay);
     return this.revision;
   }
   async kick() {

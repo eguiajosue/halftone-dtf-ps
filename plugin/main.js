@@ -11,9 +11,9 @@ const recipesAPI=require('./recipes'),projects=require('./project'),diagnostics=
 const {CONTROL_SELECTOR,bootstrap}=require('./ui-controls');
 const $=id=>document.getElementById(id);
 const levels={inputBlack:7,inputMidtone:2,inputWhite:100,outputBlack:0,outputWhite:255};
-const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','fillHolesMM','solidAbove','inkColorMLm2','inkWhiteMLm2','inkColorPriceL','inkWhitePriceL','filmPriceM2','whiteChokeMM','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
+const numeric=['alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius','mockupChestCM','mockupHeightCM','mockupX','mockupY','diskBudgetGB','tolerance','softness','lpi','angle','minDiameterMM','fillHolesMM','solidAbove','lineTrim','presmooth','inkColorMLm2','inkWhiteMLm2','inkColorPriceL','inkWhitePriceL','filmPriceM2','whiteChokeMM','focusX','focusY','widthCM','heightCM','comparePosition',...Object.keys(levels)];
 const checks=['knockout','recover','linkBackground','halftone','defringe','trimArt','convertCopy'];
-const settingIDs=['source','key',...checks,...numeric,'shape','cleanup','viewMode','previewColor','sizeAxis','placement','shirtSize','memoryMode','protection','units','garment','previewScope','gainPoints','whiteFormat'];
+const settingIDs=['source','key',...checks,...numeric,'shape','cleanup','cleanupMode','viewMode','previewColor','sizeAxis','placement','shirtSize','memoryMode','protection','units','garment','previewScope','gainPoints','whiteFormat'];
 const colorIDs=['key','knockout','tolerance','softness'];
 let busy=false,stage='prepare',previewCache=null,outputID=null,sourceInfo=null,session=null,live=null,paintRevision=0;
 let batchFiles=[],batchFolder=null,batchToken=null,batchReturnStage='prepare';
@@ -43,7 +43,7 @@ function syncSwatches(){
   $('keyHexCaption').textContent=key.toUpperCase();$('backgroundHexCaption').textContent=bg.toUpperCase();
  }catch(_){}
 }
-function syncScreen(){const lpi=Number($('lpi').value);if(Number.isFinite(lpi)&&lpi>0)$('lpcInfo').textContent=(lpi/2.54).toFixed(1)+' líneas por cm (LPC)';for(const id of ['lpi','angle','shape'])$(id+'Edit').value=$(id).value;$('halftoneEdit').checked=$('halftone').checked;$('editScreen').textContent='Trama · '+$('lpi').value+' LPI · '+$('angle').value+'°';}
+function syncScreen(){const lpi=Number($('lpi').value);if(Number.isFinite(lpi)&&lpi>0)$('lpcInfo').textContent=(lpi/2.54).toFixed(1)+' líneas por cm (LPC) · hasta '+diagnostics.tonesPerCell(lpi)+' tonos por celda a 300 ppp';for(const id of ['lpi','angle','shape'])$(id+'Edit').value=$(id).value;$('halftoneEdit').checked=$('halftone').checked;$('editScreen').textContent='Trama · '+$('lpi').value+' LPI · '+$('angle').value+'°';}
 const levelSliders=[];
 function updateGainInfo(){
   const gain=require('./gain');
@@ -60,7 +60,7 @@ function ensureEditDefaults(){
   }catch(_){
     // Invalid hidden editing fields must never trap the user in stage 1 after
     // Cancel or a restart. Stage-1 color errors remain visible and editable.
-    for(const [id,value]of Object.entries(Object.assign({},levels,{shape:'round',lpi:30,angle:33,cleanup:'standard',minDiameterMM:.20,fillHolesMM:0,solidAbove:100,gainPoints:'',focusX:50,focusY:50,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1})))$(id).value=value;
+    for(const [id,value]of Object.entries(Object.assign({},levels,{shape:'round',lpi:30,angle:33,cleanup:'standard',minDiameterMM:.20,fillHolesMM:0,solidAbove:100,lineTrim:0,presmooth:0,cleanupMode:'area',gainPoints:'',focusX:50,focusY:50,alphaThreshold:128,shadowBoost:0,colorBoost:0,defringeRadius:2,defringeStrength:100,edgeContrast:96,edgeRadius:1})))$(id).value=value;
     $('recover').checked=false;$('defringe').checked=false;$('halftone').checked=true;$('protection').value='off';syncSliders();
   }
 }
@@ -86,7 +86,7 @@ function controls(){
   $('batchCancel').disabled=!batchToken||batchToken.cancelled;
   $('cancelPreparation').disabled=!initialToken||initialToken.cancelled;$('cancelPreparation').className=initialToken?'':'hidden';
   $('lpi').disabled=busy||!$('halftone').checked;$('angle').disabled=busy||!$('halftone').checked;$('shape').disabled=busy||!$('halftone').checked;$('alphaThreshold').disabled=busy||$('halftone').checked;
-  $('minDiameterMM').disabled=busy||$('cleanup').value==='none';
+  $('minDiameterMM').disabled=busy||$('cleanup').value==='none'||$('cleanupMode').value==='opening';$('lineTrim').disabled=busy||$('shape').value!=='line'||!$('halftone').checked;
   $('saveProject').disabled=busy||!session;$('reopenLastProject').disabled=busy||!lastProject;
   $('captureSelection').disabled=busy||!session||session.sourceID==null;
   for(const id of ['lpiEdit','angleEdit','shapeEdit'])$(id).disabled=busy||!$('halftone').checked;
@@ -163,10 +163,15 @@ function scheduleView(){
     if(stage==='edit'&&!busy&&previewCache)paint(previewCache).catch(e=>{if(!e.superseded)status(e.message);});
   },80);
 }
-function queue(){
+// Levels only rebuild a table, so they go out after 40 ms. Anything that redoes a
+// stage (screen, cleanup, color, knockout) waits 120 ms so typing or dragging does
+// not start a calculation per step. Event handlers pass an Event, not a delay.
+const SLOW_DELAY=120;
+function queue(delay){
   save();controls();if(!live||!session||stage!=='edit'||busy)return;
-  paintRevision++;live.request(settings());$('liveState').textContent='Actualizando automáticamente…';
+  paintRevision++;live.request(settings(),typeof delay==='number'?delay:undefined);$('liveState').textContent='Actualizando automáticamente…';
 }
+const queueSlow=()=>queue(SLOW_DELAY);
 function createLive(){
   live=new LiveController((o,ctx)=>host.updateSession(session,{...o,detailPreview:$('inspectorPanel').className!=='hidden'},ctx,paint),{delay:40,
     onError:e=>{if(stage==='edit')status('Corrige el ajuste o vuelve a intentarlo: '+(e.message||e));},
@@ -273,7 +278,7 @@ function init(){
   for(const id of colorIDs){
     const event=id==='knockout'?'change':'input';
     $(id).addEventListener(event,()=>{syncColor();save();});
-    $(id+'Edit').addEventListener(event,()=>{if(id==='knockout')$(id).checked=$(id+'Edit').checked;else $(id).value=$(id+'Edit').value;syncSwatches();queue();});
+    $(id+'Edit').addEventListener(event,()=>{if(id==='knockout')$(id).checked=$(id+'Edit').checked;else $(id).value=$(id+'Edit').value;syncSwatches();queueSlow();});
   }
   $('foreground').addEventListener('click',foreground);$('foregroundEdit').addEventListener('click',foreground);
   // One slider for black / midtone / white and one for output, as in DTPrep.
@@ -290,8 +295,9 @@ function init(){
     $(id).addEventListener('input',()=>{syncSliders();queue();});
   }
   $('resetLevels').addEventListener('click',()=>{for(const [id,value]of Object.entries(levels))$(id).value=value;syncSliders();queue();});
-  for(const id of ['lpi','angle','minDiameterMM','fillHolesMM','solidAbove','focusX','focusY','alphaThreshold','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius'])$(id).addEventListener('input',queue);
-  for(const id of ['shape','recover','protection','halftone','defringe'])$(id).addEventListener('change',queue);
+  for(const id of ['solidAbove','focusX','focusY','alphaThreshold'])$(id).addEventListener('input',queue);
+  for(const id of ['lpi','angle','lineTrim','minDiameterMM','fillHolesMM','shadowBoost','colorBoost','defringeRadius','defringeStrength','edgeContrast','edgeRadius'])$(id).addEventListener('input',queueSlow);
+  for(const id of ['shape','recover','protection','halftone','defringe','cleanupMode','presmooth'])$(id).addEventListener('change',queue);
   $('captureSelection').addEventListener('click',()=>action(async()=>{
     if(live)await live.dispose();live=null;
     try{await host.captureProtection(session);$('protection').value='selection';save();}
@@ -515,7 +521,7 @@ function initExtras(){
  for(const [id,panel]of [['tabTrama','tramaControls'],['tabColor','colorControls'],['tabDetails','protectionControls']])$(id).addEventListener('click',()=>{
   $(panel).className=$(panel).className.includes('hidden')?'control-card':'control-card hidden';
  });
- for(const key of ['shadowBoost','colorBoost'])$(key+'Slider').addEventListener('input',()=>{$(key).value=Number($(key+'Slider').value);queue();});
+ for(const key of ['shadowBoost','colorBoost'])$(key+'Slider').addEventListener('input',()=>{$(key).value=Number($(key+'Slider').value);queueSlow();});
  $('units').addEventListener('change',()=>{
   if(!canonicalSize)canonicalSize={widthCM:displayUnit==='in'?Number($('widthCM').value)*2.54:Number($('widthCM').value),heightCM:displayUnit==='in'?Number($('heightCM').value)*2.54:Number($('heightCM').value)};
   displayUnit=$('units').value;$('widthCM').value=fromCM(canonicalSize.widthCM).toFixed(2);$('heightCM').value=fromCM(canonicalSize.heightCM).toFixed(2);save();if(sourceInfo)updateSizeInfo();
@@ -625,7 +631,7 @@ function initCompact(){
  });
  $('editScreen').addEventListener('click',()=>{syncScreen();$('tramaControls').className=$('tramaControls').className.includes('hidden')?'control-card':'control-card hidden';});
  for(const id of ['lpi','angle','shape','halftone']){
-  $(id+'Edit').addEventListener(['shape','halftone'].includes(id)?'change':'input',()=>{if(id==='halftone')$(id).checked=$(id+'Edit').checked;else $(id).value=$(id+'Edit').value;controls();queue();});
+  $(id+'Edit').addEventListener(['shape','halftone'].includes(id)?'change':'input',()=>{if(id==='halftone')$(id).checked=$(id+'Edit').checked;else $(id).value=$(id+'Edit').value;controls();if(['shape','halftone'].includes(id))queue();else queueSlow();});
   $(id).addEventListener(['shape','halftone'].includes(id)?'change':'input',syncScreen);
  }
  $('sizeMode').addEventListener('change',()=>{$('presetControls').className=$('sizeMode').value==='preset'?'':'hidden';controls();if($('sizeMode').value==='preset')applySizePreset();});
