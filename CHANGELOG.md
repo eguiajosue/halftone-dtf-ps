@@ -1,6 +1,6 @@
 # Historial
 
-## Sin publicar — técnicas del estudio de DTPrep
+## 0.8.0 RC — técnicas del estudio de DTPrep
 
 Resumen: forma de punto euclidiana, línea con recorte, limpieza por apertura según la lineatura, suavizado previo, aviso de tonos por celda y esperas diferenciadas al ajustar. Todo con matrices y filtros propios (ver `docs/IMPLEMENTACION-DTPREP.md`). Los valores por defecto no cambian la salida: las pruebas de equivalencia con 0.6.2 siguen pasando.
 

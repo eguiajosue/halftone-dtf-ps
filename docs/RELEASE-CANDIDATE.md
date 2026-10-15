@@ -1,4 +1,4 @@
-Candidato 0.7.0 de Halftone DTF para Photoshop 25.0 o superior (Windows). **Prerelease: no es una versión estable y no se instala solo.**
+Candidato 0.8.0 de Halftone DTF para Photoshop 25.0 o superior (Windows). **Prerelease: no es una versión estable y no se instala solo.**
 
 ## Novedades
 - **Edición en vivo como DTPrep:** el documento de trabajo usa el arte con máscara de capa y un relleno con el color de prenda. Mover niveles, trama o limpieza reescribe solo la máscara (¼ de los datos); las vistas Original / Prenda / Alfa cambian capas sin escribir píxeles. A 13 MP un ajuste baja de ~2,1 s a ~0,23 s de CPU (~0,03 s sin limpieza), medido sin la E/S de Photoshop.
@@ -13,8 +13,8 @@ Candidato 0.7.0 de Halftone DTF para Photoshop 25.0 o superior (Windows). **Prer
 Detalle, mediciones y límites: `CHANGELOG.md`, `docs/AUDITORIA-DTPREP.md` y `docs/CALIBRACION-Y-CALIDAD-DTF.md`.
 
 ## Archivos
-- `Halftone-DTF-0.7.0.ccx`: candidato de instalación (ZIP reproducible; no empaquetado por herramientas de Adobe).
-- `Halftone-DTF-0.7.0-proyecto.zip`: código, documentación y controles ya compilados.
+- `Halftone-DTF-0.8.0.ccx`: candidato de instalación (ZIP reproducible; no empaquetado por herramientas de Adobe).
+- `Halftone-DTF-0.8.0-proyecto.zip`: código, documentación y controles ya compilados.
 - `Halftone-DTF-Updater-Windows.zip`: acompañante de Windows.
 - `SHA256SUMS.txt`: checksum del CCX.
 
