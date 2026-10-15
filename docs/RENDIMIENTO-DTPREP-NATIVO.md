@@ -11,6 +11,22 @@ Fuente: el paquete `LightningDTPrep_v114.ccx` (UXP, `com.lp.DTPrep`). Se inspecc
 | `MainPattern3.psd` / `MainPattern4.psd`: documentos de 1×1 px con recursos `8BIMPatt` y capas `PtFl` (relleno de motivo) llamados `DTPrep_Round` y `HALFTONE LINE` | La trama es un **motivo nativo de Photoshop**: un relleno de motivo escalado según la LPI y girado según el ángulo, combinado con niveles y máscara. Lo calcula Photoshop en C++/GPU, sin bucles por píxel en JS. |
 | Panel fijo de 280 px, una sola dependencia (`uxp`/`photoshop`), sin frameworks | Interfaz mínima: no hay coste de arranque de UI. |
 
+### Análisis con REA (`rea-agents analyze-javascript-application`)
+
+Evidence `ev_808051ee…192c`, árbol extraído con SHA-256 `e5adbc1a…fc73`. Es un análisis estático: el código no se ejecutó.
+
+- **Archivos y dependencias:** tres archivos JS (`main2.js`, `main.js`, `presets.js`). Solo depende de `uxp`, `photoshop` y `os`. Hay 0 workers, 0 addons nativos y 0 WebAssembly.
+- **Estado de la interfaz:** 33 operaciones de `localStorage` (`whitePointInput`, `blackPoint`, `grayPoint`, `pathExpand`, `halftoneType`, `patternAngle`, `pendingPatternScale`, `shirtcolor`, `postCleanup`…). Los presets van en un JSON del data folder.
+- **Límite:** el análisis advierte que las rutas ofuscadas quedan sin resolver. No recupera los descriptores de `batchPlay`.
+
+### Observación en sandbox de Node (sin Photoshop)
+
+Se cargó `main2.js` + `main.js` con `uxp`/`photoshop` simulados, registrando cada llamada al host.
+
+- **Al cargar:** registra un listener de notificaciones de Photoshop (`open`, `close`, `imageSize`, `canvasSize`, `crop`, `transform`, `trim`…) para refrescar el tamaño de impresión. Llama a `entrypoints.setup` con el panel `dtprep`.
+- **Licencia:** lee `license_backup.json` del data folder. `main2.js` es su "Lightning Plugins Licensing System".
+- **Al pulsar Run sin licencia:** sale "Plugin Registration Error" y no se ejecuta ningún `batchPlay` ni `imaging`. La observación se detuvo aquí; no se intentó saltar la licencia.
+
 **Por qué se siente rápido:** cada ajuste es una edición nativa (motivo, niveles, máscara) y no hay transferencia de buffers entre JS y Photoshop.
 
 ## Diferencia con Halftone DTF
